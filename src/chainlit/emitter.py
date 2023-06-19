@@ -143,11 +143,15 @@ def get_emitter() -> Union[ChainlitEmitter, None]:
     """
     attr = "__chainlit_emitter__"
     candidates = [i[0].f_locals.get(attr) for i in inspect.stack()]
+    
     emitter = None
     for candidate in candidates:
         if candidate:
             emitter = candidate
             break
+
+    if emitter is None:
+        print(f"#####local: {[i[0].f_locals for i in inspect.stack()]}")
 
     return emitter
 
