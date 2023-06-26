@@ -159,7 +159,7 @@ class ExampleBody:
 @dataclass_json
 @dataclass()
 class Examples:
-    examples: List[ExampleBody] = []
+    examples: List[ExampleBody] = None
 
 @dataclass()
 class ChainlitConfig:
