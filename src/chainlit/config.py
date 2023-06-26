@@ -2,6 +2,7 @@ from typing import Optional, Any, Callable, List, Dict, TYPE_CHECKING
 import os
 import sys
 import tomli
+import json
 from pydantic.dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from importlib import util
@@ -51,6 +52,10 @@ hide_cot = false
 
 # Link to your github repo. This will add a github button in the UI's header.
 # github = ""
+
+[Examples]
+# json file path of examples
+path = ".examples.txt"
 
 [meta]
 generated_by = "{__version__}"
@@ -143,6 +148,18 @@ class ProjectSettings:
     # Path to the local langchain cache database
     lc_cache_path: str = None
 
+@dataclass_json
+@dataclass()
+class ExampleBody:
+    name: str = None
+    prompt: str = None
+    status: str = None
+    logo: Optional[str] = None
+
+@dataclass_json
+@dataclass()
+class Examples:
+    examples: List[ExampleBody] = []
 
 @dataclass()
 class ChainlitConfig:
@@ -157,7 +174,7 @@ class ChainlitConfig:
     ui: UISettings
     project: ProjectSettings
     code: CodeSettings
-
+    examples: Examples
 
 def init_config(log=False):
     """Initialize the configuration file if it doesn't exist."""
@@ -197,6 +214,17 @@ def load_settings():
         ui_settings = toml_dict.get("UI", {})
         meta = toml_dict.get("meta")
 
+        # examples
+        example_obj = toml_dict.get("examples")
+        example_path = example_obj.get('path')
+        example_list = []
+        with open(os.path.join(config_dir, example_path), 'r') as f:
+            for line in f:
+                tmp_example = ExampleBody(**json.loads(line))
+                example_list.append(tmp_example)
+        examples = Examples(examples=example_list)
+
+
         if not meta or meta.get("generated_by") <= "0.3.0":
             raise ValueError(
                 "Your config file is outdated. Please delete it and restart the app to regenerate it."
@@ -216,6 +244,7 @@ def load_settings():
             "ui": ui_settings,
             "project": project_settings,
             "code": CodeSettings(action_callbacks={}),
+            "examples": examples
         }
 
 
@@ -230,6 +259,7 @@ def reload_config():
     config.code = settings["code"]
     config.ui = settings["ui"]
     config.project = settings["project"]
+    config.examples = settings['examples']
 
 
 def load_config():

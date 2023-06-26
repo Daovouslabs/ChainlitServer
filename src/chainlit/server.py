@@ -203,6 +203,12 @@ async def project_settings():
         }
     )
 
+@app.get("/examples")
+async def examples():
+    """Return examples"""
+    return JSONResponse(
+        content=config.examples.to_dict()
+    )
 
 @app.get("/{path:path}")
 async def serve(path: str):
