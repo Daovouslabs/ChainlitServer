@@ -191,3 +191,11 @@ class Pyplot(Element):
         # Prevent the figure from being serialized
         del element["figure"]
         return element
+
+@dataclass
+class Audio(Element):
+    type: ElementType = "audio"
+
+@dataclass
+class Video(Element):
+    type: ElementType = "video"
