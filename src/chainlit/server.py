@@ -21,7 +21,8 @@ from fastapi_socketio import SocketManager
 from starlette.middleware.cors import CORSMiddleware
 import asyncio
 
-from chainlit.config import config, load_module, DEFAULT_HOST
+from chainlit.context import emitter_var, loop_var
+from chainlit.config import config, load_module, reload_config, DEFAULT_HOST
 from chainlit.session import Session, sessions
 from chainlit.user_session import user_sessions
 from chainlit.client import CloudClient
@@ -54,17 +55,31 @@ async def lifespan(app: FastAPI):
     if config.run.watch:
 
         async def watch_files_for_changes():
+            extensions = [".py"]
+            files = ["chainlit.md", "config.toml"]
             async for changes in awatch(config.root, stop_event=stop_event):
                 for change_type, file_path in changes:
                     file_name = os.path.basename(file_path)
                     file_ext = os.path.splitext(file_name)[1]
 
-                    if file_ext.lower() == ".py" or file_name.lower() == "chainlit.md":
-                        logger.info(f"File {change_type.name}: {file_name}")
+                    if file_ext.lower() in extensions or file_name.lower() in files:
+                        logger.info(
+                            f"File {change_type.name}: {file_name}. Reloading app..."
+                        )
+
+                        try:
+                            reload_config()
+                        except Exception as e:
+                            logger.error(f"Error reloading config: {e}")
+                            break
 
                         # Reload the module if the module name is specified in the config
                         if config.run.module_name:
-                            load_module(config.run.module_name)
+                            try:
+                                load_module(config.run.module_name)
+                            except Exception as e:
+                                logger.error(f"Error reloading module: {e}")
+                                break
 
                         await socket.emit("reload", {})
 
@@ -74,12 +89,14 @@ async def lifespan(app: FastAPI):
 
     try:
         yield
-    except KeyboardInterrupt:
-        logger.error("KeyboardInterrupt received, stopping the watch task...")
     finally:
         if watch_task:
-            stop_event.set()
-            await watch_task
+            try:
+                stop_event.set()
+                watch_task.cancel()
+                await watch_task
+            except asyncio.exceptions.CancelledError:
+                pass
 
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -219,22 +236,11 @@ async def connect(sid, environ):
     authorization = environ.get("HTTP_AUTHORIZATION")
     cloud_client = None
 
-    # Check decorated functions
-    if (
-        not config.code.lc_factory
-        and not config.code.on_message
-        and not config.code.on_chat_start
-    ):
-        logger.error(
-            "Module should at least expose one of @langchain_factory, @on_message or @on_chat_start function"
-        )
-        return False
-
     # Check authorization
     if not config.project.public and not authorization:
         # Refuse connection if the app is private and no access token is provided
         trace_event("no_access_token")
-        logger.error("No access token provided")
+        logger.error("Connection refused: No access token provided")
         return False
     elif authorization and config.project.id:
         # Create the cloud client
@@ -245,7 +251,7 @@ async def connect(sid, environ):
         )
         is_project_member = await cloud_client.is_project_member()
         if not is_project_member:
-            logger.error("You are not a member of this project")
+            logger.error("Connection refused: You are not a member of this project")
             return False
 
     # Check user env
@@ -256,10 +262,12 @@ async def connect(sid, environ):
             for key in config.project.user_env:
                 if key not in user_env:
                     trace_event("missing_user_env")
-                    logger.error("Missing user environment variable: " + key)
+                    logger.error(
+                        "Connection refused: Missing user environment variable: " + key
+                    )
                     return False
         else:
-            logger.error("Missing user environment variables")
+            logger.error("Connection refused: Missing user environment variables")
             return False
 
     # Create the session
@@ -285,7 +293,6 @@ async def connect(sid, environ):
         "ask_user": ask_user_fn,
         "client": cloud_client,
         "user_env": user_env,
-        "running_sync": False,
         "should_stop": False,
     }  # type: Session
 
@@ -298,15 +305,17 @@ async def connect(sid, environ):
 @socket.on("connection_successful")
 async def connection_successful(sid):
     session = need_session(sid)
-    __chainlit_emitter__ = ChainlitEmitter(session)
+    emitter_var.set(ChainlitEmitter(session))
+    loop_var.set(asyncio.get_event_loop())
+
     if config.code.lc_factory:
         """Instantiate the langchain agent and store it in the session."""
-        agent = await config.code.lc_factory(__chainlit_emitter__=__chainlit_emitter__)
+        agent = await config.code.lc_factory()
         session["agent"] = agent
 
     if config.code.on_chat_start:
         """Call the on_chat_start function provided by the developer."""
-        await config.code.on_chat_start(__chainlit_emitter__=__chainlit_emitter__)
+        await config.code.on_chat_start()
 
 
 @socket.on("disconnect")
@@ -326,7 +335,8 @@ async def stop(sid):
         trace_event("stop_task")
         session = sessions[sid]
 
-        __chainlit_emitter__ = ChainlitEmitter(session)
+        emitter_var.set(ChainlitEmitter(session))
+        loop_var.set(asyncio.get_event_loop())
 
         await Message(author="System", content="Task stopped by the user.").send()
 
@@ -340,8 +350,11 @@ async def process_message(session: Session, author: str, input_str: str):
     """Process a message from the user."""
 
     try:
-        __chainlit_emitter__ = ChainlitEmitter(session)
-        await __chainlit_emitter__.task_start()
+        emitter = ChainlitEmitter(session)
+        emitter_var.set(emitter)
+        loop_var.set(asyncio.get_event_loop())
+
+        await emitter.task_start()
 
         if session["client"]:
             # If cloud is enabled, persist the message
@@ -363,7 +376,6 @@ async def process_message(session: Session, author: str, input_str: str):
                 await config.code.lc_run(
                     langchain_agent,
                     input_str,
-                    __chainlit_emitter__=__chainlit_emitter__,
                 )
                 return
             else:
@@ -374,9 +386,7 @@ async def process_message(session: Session, author: str, input_str: str):
 
                 if config.code.lc_postprocess:
                     # If the developer provided a custom postprocess function, use it
-                    await config.code.lc_postprocess(
-                        raw_res, __chainlit_emitter__=__chainlit_emitter__
-                    )
+                    await config.code.lc_postprocess(raw_res)
                     return
                 elif output_key is not None:
                     # Use the output key if provided
@@ -389,16 +399,14 @@ async def process_message(session: Session, author: str, input_str: str):
 
         elif config.code.on_message:
             # If no langchain agent is available, call the on_message function provided by the developer
-            await config.code.on_message(
-                input_str, __chainlit_emitter__=__chainlit_emitter__
-            )
+            await config.code.on_message(input_str)
     except InterruptedError:
         pass
     except Exception as e:
         logger.exception(e)
         await ErrorMessage(author="Error", content=str(e)).send()
     finally:
-        await __chainlit_emitter__.task_end()
+        await emitter.task_end()
 
 
 @socket.on("ui_message")
@@ -413,11 +421,10 @@ async def message(sid, data):
     await process_message(session, author, input_str)
 
 
-async def process_action(session: Session, action: Action):
-    __chainlit_emitter__ = ChainlitEmitter(session)
+async def process_action(action: Action):
     callback = config.code.action_callbacks.get(action.name)
     if callback:
-        await callback(action, __chainlit_emitter__=__chainlit_emitter__)
+        await callback(action)
     else:
         logger.warning("No callback found for action %s", action.name)
 
@@ -426,8 +433,9 @@ async def process_action(session: Session, action: Action):
 async def call_action(sid, action):
     """Handle an action call from the UI."""
     session = need_session(sid)
+    emitter_var.set(ChainlitEmitter(session))
+    loop_var.set(asyncio.get_event_loop())
 
-    __chainlit_emitter__ = ChainlitEmitter(session)
     action = Action(**action)
 
-    await process_action(session, action)
+    await process_action(action)
