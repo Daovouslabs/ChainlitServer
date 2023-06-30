@@ -10,7 +10,7 @@ export default function Login() {
     if (!isAuthenticated) {
       loginWithRedirect({
         authorizationParams: {
-          audience: 'chainlit-cloud'
+          audience: 'https://daovous.xyz'
         }
       });
     } else navigate('/');

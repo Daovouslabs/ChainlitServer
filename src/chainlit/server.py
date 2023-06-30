@@ -34,7 +34,6 @@ from chainlit.telemetry import trace_event
 from chainlit.logger import logger
 from chainlit.types import CompletionRequest
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     host = config.run.host
@@ -218,6 +217,7 @@ async def serve(path: str):
         return FileResponse(path_to_file)
     else:
         return HTMLResponse(content=html_template, status_code=200)
+
 
 
 """

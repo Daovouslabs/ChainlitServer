@@ -87,7 +87,7 @@ function App() {
     if (isAuthenticated && accessToken === undefined) {
       getAccessTokenSilently({
         authorizationParams: {
-          audience: 'chainlit-cloud'
+          audience: 'https://daovous.xyz'
         }
       })
         .then((token) => setAccessToken(token))
