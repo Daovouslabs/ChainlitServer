@@ -1,7 +1,8 @@
 import { Typography } from '@mui/material';
+import { grey } from 'palette';
 
 interface Props {
-  timestamp: number;
+  timestamp: number | string;
 }
 
 export default function MessageTime({ timestamp }: Props) {
@@ -13,7 +14,7 @@ export default function MessageTime({ timestamp }: Props) {
   };
   const date = new Date(timestamp).toLocaleTimeString(undefined, dateOptions);
   return (
-    <Typography lineHeight="24px" color="#9E9E9E" fontSize="11px">
+    <Typography lineHeight="24px" color={grey[500]} fontSize="11px">
       {date}
     </Typography>
   );

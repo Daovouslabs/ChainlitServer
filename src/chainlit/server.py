@@ -6,11 +6,13 @@ mimetypes.add_type("text/css", ".css")
 import os
 import json
 import webbrowser
+from pathlib import Path
+
 
 from contextlib import asynccontextmanager
 from watchfiles import awatch
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -25,28 +27,49 @@ from chainlit.context import emitter_var, loop_var
 from chainlit.config import config, load_module, reload_config, DEFAULT_HOST
 from chainlit.session import Session, sessions
 from chainlit.user_session import user_sessions
-from chainlit.client import CloudClient
+from chainlit.client.utils import (
+    get_db_client,
+    get_auth_client,
+    get_auth_client_from_request,
+    get_db_client_from_request,
+)
 from chainlit.emitter import ChainlitEmitter
 from chainlit.markdown import get_markdown_str
 from chainlit.action import Action
 from chainlit.message import Message, ErrorMessage
 from chainlit.telemetry import trace_event
 from chainlit.logger import logger
-from chainlit.types import CompletionRequest
+from chainlit.types import (
+    CompletionRequest,
+    UpdateFeedbackRequest,
+    GetConversationsRequest,
+    DeleteConversationRequest,
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     host = config.run.host
     port = config.run.port
 
-    if not config.run.headless:
-        if host == DEFAULT_HOST:
-            url = f"http://localhost:{port}"
-        else:
-            url = f"http://{host}:{port}"
+    if host == DEFAULT_HOST:
+        url = f"http://localhost:{port}"
+    else:
+        url = f"http://{host}:{port}"
 
-        logger.info(f"Your app is available at {url}")
-        # webbrowser.open(url)
+    logger.info(f"Your app is available at {url}")
+
+    if not config.run.headless:
+        # Add a delay before opening the browser
+        await asyncio.sleep(1)
+        webbrowser.open(url)
+
+    if config.project.database == "local":
+        from prisma import Client, register
+
+        client = Client()
+        register(client)
+        await client.connect()
 
     watch_task = None
     stop_event = asyncio.Event()
@@ -89,6 +112,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        if config.project.database == "local":
+            await client.disconnect()
         if watch_task:
             try:
                 stop_event.set()
@@ -209,6 +234,80 @@ async def examples():
         content=config.examples.to_dict()
     )
 
+@app.put("/message/feedback")
+async def update_feedback(request: Request, update: UpdateFeedbackRequest):
+    """Update the human feedback for a particular message."""
+
+    db_client = await get_db_client_from_request(request)
+    await db_client.set_human_feedback(
+        message_id=update.messageId, feedback=update.feedback
+    )
+    return JSONResponse(content={"success": True})
+
+
+@app.get("/project/members")
+async def get_project_members(request: Request):
+    """Get all the members of a project."""
+
+    auth_client = await get_auth_client_from_request(request)
+    res = await auth_client.get_project_members()
+    return JSONResponse(content=res)
+
+
+@app.get("/project/role")
+async def get_member_role(request: Request):
+    """Get the role of a member."""
+
+    auth_client = await get_auth_client_from_request(request)
+    res = await auth_client.get_member_role()
+    return PlainTextResponse(content=res)
+
+
+@app.post("/project/conversations")
+async def get_project_conversations(request: Request, payload: GetConversationsRequest):
+    """Get the conversations page by page."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_conversations(payload.pagination, payload.filter)
+    return JSONResponse(content=res.to_dict())
+
+
+@app.get("/project/conversation/{conversation_id}")
+async def get_conversation(request: Request, conversation_id: str):
+    """Get a specific conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_conversation(int(conversation_id))
+    return JSONResponse(content=res)
+
+
+@app.get("/project/conversation/{conversation_id}/element/{element_id}")
+async def get_conversation(request: Request, conversation_id: str, element_id: str):
+    """Get a specific conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_element(int(conversation_id), int(element_id))
+    return JSONResponse(content=res)
+
+
+@app.delete("/project/conversation")
+async def delete_conversation(request: Request, payload: DeleteConversationRequest):
+    """Delete a conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    await db_client.delete_conversation(conversation_id=payload.conversationId)
+    return JSONResponse(content={"success": True})
+
+
+@app.get("/files/{filename:path}")
+async def serve_file(filename: str):
+    file_path = Path(config.project.local_fs_path) / filename
+    if file_path.is_file():
+        return FileResponse(file_path)
+    else:
+        return {"error": "File not found"}
+
+
 @app.get("/{path:path}")
 async def serve(path: str):
     """Serve the UI."""
@@ -240,43 +339,28 @@ def need_session(id: str):
 async def connect(sid, environ):
     user_env = environ.get("HTTP_USER_ENV")
     authorization = environ.get("HTTP_AUTHORIZATION")
-    cloud_client = None
 
-    # Check authorization
-    if not config.project.public and not authorization:
-        # Refuse connection if the app is private and no access token is provided
-        trace_event("no_access_token")
-        logger.error("Connection refused: No access token provided")
+    try:
+        auth_client = await get_auth_client(authorization)
+        db_client = await get_db_client(authorization)
+
+        # Check user env
+        if config.project.user_env:
+            # Check if requested user environment variables are provided
+            if user_env:
+                user_env = json.loads(user_env)
+                for key in config.project.user_env:
+                    if key not in user_env:
+                        trace_event("missing_user_env")
+                        raise ConnectionRefusedError(
+                            "Missing user environment variable: " + key
+                        )
+            else:
+                raise ConnectionRefusedError("Missing user environment variables")
+
+    except ConnectionRefusedError as e:
+        logger.error(f"ConnectionRefusedError: {e}")
         return False
-    elif authorization and config.project.id:
-        # Create the cloud client
-        cloud_client = CloudClient(
-            project_id=config.project.id,
-            session_id=sid,
-            access_token=authorization,
-        )
-        is_project_member = await cloud_client.is_project_member()
-        if not is_project_member:
-            logger.error("Connection refused: You are not a member of this project")
-            return False
-
-    # Check user env
-    if config.project.user_env:
-        # Check if requested user environment variables are provided
-        if user_env:
-            user_env = json.loads(user_env)
-            for key in config.project.user_env:
-                if key not in user_env:
-                    trace_event("missing_user_env")
-                    logger.error(
-                        "Connection refused: Missing user environment variable: " + key
-                    )
-                    return False
-        else:
-            logger.error("Connection refused: Missing user environment variables")
-            return False
-
-    # Create the session
 
     # Function to send a message to this particular session
     def emit_fn(event, data):
@@ -297,7 +381,8 @@ async def connect(sid, environ):
         "id": sid,
         "emit": emit_fn,
         "ask_user": ask_user_fn,
-        "client": cloud_client,
+        "auth_client": auth_client,
+        "db_client": db_client,
         "user_env": user_env,
         "should_stop": False,
     }  # type: Session
@@ -314,14 +399,18 @@ async def connection_successful(sid):
     emitter_var.set(ChainlitEmitter(session))
     loop_var.set(asyncio.get_event_loop())
 
+    if config.code.on_chat_start:
+        """Call the on_chat_start function provided by the developer."""
+        await config.code.on_chat_start()
+
     if config.code.lc_factory:
         """Instantiate the langchain agent and store it in the session."""
         agent = await config.code.lc_factory()
         session["agent"] = agent
 
-    if config.code.on_chat_start:
-        """Call the on_chat_start function provided by the developer."""
-        await config.code.on_chat_start()
+    if config.code.llama_index_factory:
+        llama_instance = await config.code.llama_index_factory()
+        session["llama_instance"] = llama_instance
 
 
 @socket.on("disconnect")
@@ -362,9 +451,9 @@ async def process_message(session: Session, author: str, input_str: str):
 
         await emitter.task_start()
 
-        if session["client"]:
+        if session["db_client"]:
             # If cloud is enabled, persist the message
-            await session["client"].create_message(
+            await session["db_client"].create_message(
                 {
                     "author": author,
                     "content": input_str,
@@ -373,6 +462,8 @@ async def process_message(session: Session, author: str, input_str: str):
             )
 
         langchain_agent = session.get("agent")
+        llama_instance = session.get("llama_instance")
+
         if langchain_agent:
             from chainlit.lc.agent import run_langchain_agent
 
@@ -403,6 +494,11 @@ async def process_message(session: Session, author: str, input_str: str):
             # Finally, send the response to the user
             await Message(author=config.ui.name, content=res).send()
 
+        elif llama_instance:
+            from chainlit.llama_index.run import run_llama
+
+            await run_llama(llama_instance, input_str)
+
         elif config.code.on_message:
             # If no langchain agent is available, call the on_message function provided by the developer
             await config.code.on_message(input_str)
@@ -410,7 +506,9 @@ async def process_message(session: Session, author: str, input_str: str):
         pass
     except Exception as e:
         logger.exception(e)
-        await ErrorMessage(author="Error", content=str(e)).send()
+        await ErrorMessage(
+            author="Error", content=str(e) or e.__class__.__name__
+        ).send()
     finally:
         await emitter.task_end()
 
