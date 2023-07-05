@@ -17,6 +17,6 @@
     "formatPython": "black src",
     "installUiDeps": "cd src/chainlit/frontend && npm install",
     "buildUi": "(cd src/chainlit/frontend && npm run build)",
-    "build": "(cd src/chainlit/frontend && npm run build) && (cd src && poetry build)"
+    "build": "(cd src/chainlit/frontend && npm run build) && (cd src && poetry build -f wheel)"
   }
 }
