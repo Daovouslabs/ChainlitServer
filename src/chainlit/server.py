@@ -308,6 +308,80 @@ async def serve_file(filename: str):
         return {"error": "File not found"}
 
 
+@app.put("/message/feedback")
+async def update_feedback(request: Request, update: UpdateFeedbackRequest):
+    """Update the human feedback for a particular message."""
+
+    db_client = await get_db_client_from_request(request)
+    await db_client.set_human_feedback(
+        message_id=update.messageId, feedback=update.feedback
+    )
+    return JSONResponse(content={"success": True})
+
+
+@app.get("/project/members")
+async def get_project_members(request: Request):
+    """Get all the members of a project."""
+
+    auth_client = await get_auth_client_from_request(request)
+    res = await auth_client.get_project_members()
+    return JSONResponse(content=res)
+
+
+@app.get("/project/role")
+async def get_member_role(request: Request):
+    """Get the role of a member."""
+
+    auth_client = await get_auth_client_from_request(request)
+    res = await auth_client.get_member_role()
+    return PlainTextResponse(content=res)
+
+
+@app.post("/project/conversations")
+async def get_project_conversations(request: Request, payload: GetConversationsRequest):
+    """Get the conversations page by page."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_conversations(payload.pagination, payload.filter)
+    return JSONResponse(content=res.to_dict())
+
+
+@app.get("/project/conversation/{conversation_id}")
+async def get_conversation(request: Request, conversation_id: str):
+    """Get a specific conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_conversation(int(conversation_id))
+    return JSONResponse(content=res)
+
+
+@app.get("/project/conversation/{conversation_id}/element/{element_id}")
+async def get_conversation(request: Request, conversation_id: str, element_id: str):
+    """Get a specific conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_element(int(conversation_id), int(element_id))
+    return JSONResponse(content=res)
+
+
+@app.delete("/project/conversation")
+async def delete_conversation(request: Request, payload: DeleteConversationRequest):
+    """Delete a conversation."""
+
+    db_client = await get_db_client_from_request(request)
+    await db_client.delete_conversation(conversation_id=payload.conversationId)
+    return JSONResponse(content={"success": True})
+
+
+@app.get("/files/{filename:path}")
+async def serve_file(filename: str):
+    file_path = Path(config.project.local_fs_path) / filename
+    if file_path.is_file():
+        return FileResponse(file_path)
+    else:
+        return {"error": "File not found"}
+
+
 @app.get("/{path:path}")
 async def serve(path: str):
     """Serve the UI."""

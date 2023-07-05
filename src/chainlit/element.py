@@ -44,7 +44,22 @@ class Element:
         if not self.url and not self.path and not self.content:
             raise ValueError("Must provide url, path or content to instantiate element")
 
-        self.tempId = uuid.uuid4().hex
+    def to_dict(self) -> Dict:
+        _dict = {
+            "tempId": self.temp_id,
+            "type": self.type,
+            "url": self.url,
+            "name": self.name,
+            "display": self.display,
+            "size": getattr(self, "size", None),
+            "language": getattr(self, "language", None),
+            "forIds": getattr(self, "for_ids", None),
+        }
+
+        if self.id:
+            _dict["id"] = self.id
+
+        return _dict
 
     async def preprocess_content(self):
         pass
