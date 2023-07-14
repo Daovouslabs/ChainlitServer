@@ -48,3 +48,12 @@ model Message {
   llmSettings    Json?
   ts_vector      Unsupported("tsvector")?
 }
+
+model Example {
+  id             Int          @id @default(autoincrement())
+  createdAt      DateTime     @default(now())
+  name           String
+  prompt         String
+  status         String
+  tags            String[]
+}

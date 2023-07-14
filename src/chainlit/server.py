@@ -44,6 +44,7 @@ from chainlit.types import (
     UpdateFeedbackRequest,
     GetConversationsRequest,
     DeleteConversationRequest,
+    Pagination
 )
 
 
@@ -271,6 +272,13 @@ async def get_project_conversations(request: Request, payload: GetConversationsR
     res = await db_client.get_conversations(payload.pagination, payload.filter)
     return JSONResponse(content=res.to_dict())
 
+@app.post("/project/examples")
+async def get_project_examples(request: Request, pagination: Pagination):
+    """Get the examples page by page."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_examples(pagination)
+    return JSONResponse(content=res.to_dict())
 
 @app.get("/project/conversation/{conversation_id}")
 async def get_conversation(request: Request, conversation_id: str):

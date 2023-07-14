@@ -222,7 +222,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $search: String
                 $authorId: String
             ) {
-                search_messages_connection(args: {search: $search}, where: {humanFeedback: {_in: $withFeedback}, authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}}}, first: $first, after: $cursor) {
+                search_messages_connection(args: {search: $search}, where: {humanFeedback: {_in: $withFeedback}, authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}}}, first: $first, after: $cursor, order_by: {createdAt: desc}) {
                     edges {
                         node {
                             Conversation {
@@ -238,7 +238,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                                         count(distinct: true)
                                     }
                                 }
-                                Messages {
+                                Messages(order_by: {createdAt: asc}) {
                                     content
                                 }
                             }
@@ -267,7 +267,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $withFeedback: [Int]=[-1, 0, 1]
                 $authorId: String
             ) {
-                Conversation_connection(first: $first, after: $cursor, where: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}) {
+                Conversation_connection(first: $first, after: $cursor, where: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}, order_by: {createdAt: desc}) {
                     edges {
                         node {
                             id
@@ -282,7 +282,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                                     count(distinct: true)
                                 }
                             }
-                            Messages {
+                            Messages(order_by: {createdAt: asc}) {
                                 content
                             }
                         }
@@ -483,4 +483,44 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         s3_client.upload_fileobj(content, object_name)
         return f"{config.s3.domain}{object_name}"
 
+    async def get_examples(self, pagination):
+        query = """
+            query ($first: Int, $cursor: String) {
+                Example_connection(order_by: {createdAt: desc}, after: $cursor, first: $first) {
+                    edges {
+                        node {
+                            name
+                            prompt
+                            status
+                            tags
+                        }
+                        cursor
+                    }
+                    pageInfo {
+                        endCursor
+                        hasNextPage
+                    }
+                }
+            }
+        """
+        variables = {
+            "first": pagination.first,
+            "cursor": pagination.cursor
+        }
+        res = await self.query(query, variables)
+        self.check_for_errors(res, raise_error=True)
 
+        examples = []
+
+        for edge in res["data"]["Example_connection"]["edges"]:
+            examples.append(edge["node"])
+
+        page_info = res["data"]["Example_connection"]["pageInfo"]
+
+        return PaginatedResponse(
+            pageInfo=PageInfo(
+                hasNextPage=page_info["hasNextPage"],
+                endCursor=page_info["endCursor"],
+            ),
+            data=examples,
+        )
