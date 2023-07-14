@@ -39,7 +39,7 @@ class CustomClient(BaseDBClient):
     async def delete_message(self, message_id: int) -> bool:
         raise NotImplementedError
 
-    async def upload_element(self, content: bytes, mime: str) -> str:
+    async def upload_element(self, content: bytes, mime: str, type: str=None, ext: str=None) -> str:
         raise NotImplementedError
 
     async def upsert_element(self, variables: ElementDict) -> ElementDict:

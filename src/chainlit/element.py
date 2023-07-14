@@ -78,7 +78,12 @@ class Element:
                 if self.type == "text"
                 else filetype.guess_mime(self.content)
             )
-            self.url = await client.upload_element(content=self.content, mime=mime)
+            ext = (
+                "txt"
+                if self.type == "text"
+                else filetype.guess_extension(self.content)
+            )
+            self.url = await client.upload_element(content=self.content, mime=mime, type=self.type, ext=ext)
         element = await client.upsert_element(self.to_dict())
         return element
 

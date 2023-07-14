@@ -223,7 +223,7 @@ class LocalDBClient(BaseDBClient):
         res = await Element.prisma().find_unique_or_raise(where={"id": element_id})
         return json.loads(res.json())
 
-    async def upload_element(self, content: bytes, mime: str):
+    async def upload_element(self, content: bytes, mime: str, type: str=None, ext: str=None):
         c_id = await self.get_conversation_id()
 
         if not c_id:

@@ -70,7 +70,6 @@ generated_by = "{__version__}"
 chainlit_prod_url = os.environ.get("CHAINLIT_PROD_URL")
 chainlit_server = "https://cloud.chainlit.io"
 
-
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8000
 
@@ -177,6 +176,12 @@ class ExampleBody:
 class Examples:
     examples: List[ExampleBody] = None
 
+@dataclass_json
+@dataclass()
+class S3:
+    domain: str
+    bucket: str
+
 @dataclass()
 class ChainlitConfig:
     # Directory where the Chainlit project is located
@@ -186,11 +191,15 @@ class ChainlitConfig:
     # The url of the deployed app. Only set if the app is deployed.
     chainlit_prod_url = chainlit_prod_url
 
+    # graphql url
+    graphql_url: str
+
     run: RunSettings
     ui: UISettings
     project: ProjectSettings
     code: CodeSettings
     examples: Examples
+    s3: S3
 
 def init_config(log=False):
     """Initialize the configuration file if it doesn't exist."""
@@ -242,6 +251,14 @@ def load_settings():
                 example_list.append(tmp_example)
         examples = Examples(examples=example_list)
 
+        # s3
+        s3 = S3(
+            domain=toml_dict.get('s3', {}).get('domain'),
+            bucket=toml_dict.get('s3', {}).get('bucket')
+        )
+
+        # graphql url
+        graphql_url = toml_dict.get('graphql', {}).get('url')
 
         if not meta or meta.get("generated_by") <= "0.3.0":
             raise ValueError(
@@ -272,7 +289,9 @@ def load_settings():
             "ui": ui_settings,
             "project": project_settings,
             "code": CodeSettings(action_callbacks={}),
-            "examples": examples
+            "examples": examples,
+            "s3": s3,
+            "graphql_url": graphql_url
         }
 
 
@@ -288,6 +307,8 @@ def reload_config():
     config.ui = settings["ui"]
     config.project = settings["project"]
     config.examples = settings['examples']
+    config.s3 = settings['s3']
+    config.graphql_url = settings['graphql_url']
 
 
 def load_config():

@@ -4,6 +4,7 @@ from chainlit.config import config
 from chainlit.client.base import BaseDBClient, BaseAuthClient
 from chainlit.client.local import LocalAuthClient, LocalDBClient
 from chainlit.client.cloud import CloudAuthClient, CloudDBClient
+from chainlit.client.custom import CustomAuthClient
 from chainlit.telemetry import trace_event
 
 
@@ -24,6 +25,11 @@ async def get_auth_client(authorization: str) -> BaseAuthClient:
         if not is_project_member:
             raise ConnectionRefusedError("User is not a member of the project")
 
+        return auth_client
+    elif authorization and config.project.database == "custom":
+        auth_client = CustomAuthClient(
+            access_token=authorization
+        )
         return auth_client
 
     # Default to local auth client
@@ -46,7 +52,7 @@ async def get_db_client(authorization: str) -> BaseDBClient:
         if not config.code.client_factory:
             raise ValueError("Client factory not provided")
 
-        custom_db_client = await config.code.client_factory()
+        custom_db_client = await config.code.client_factory(authorization)
         return custom_db_client
 
 

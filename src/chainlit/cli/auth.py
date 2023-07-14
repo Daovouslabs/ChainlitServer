@@ -13,8 +13,8 @@ import os
 import json
 
 
-AUTH0_DOMAIN = "auth.chainlit.io"
-AUTH0_CLIENT_ID = "ADo93BBXDn8Z35lEi8arCWiR7C0ncrjx"
+AUTH0_DOMAIN = "auth.daovous.xyz"
+AUTH0_CLIENT_ID = "4ZStsN96Ru4Ko1b9itlhLysyoDW9QudW"
 ALGORITHMS = ["HS256"]
 
 
@@ -98,7 +98,7 @@ def login():
     device_code_payload = {
         "client_id": AUTH0_CLIENT_ID,
         "scope": "openid profile email",
-        "audience": "chttps://daovous.xyz",
+        "audience": "https://daovous.xyz",
     }
     device_code_response = requests.post(
         "https://{}/oauth/device/code".format(AUTH0_DOMAIN), data=device_code_payload

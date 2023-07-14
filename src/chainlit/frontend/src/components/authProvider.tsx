@@ -10,21 +10,21 @@ interface Props {
 export default memo(function AuthProvider({ children }: Props) {
   const pSettings = useRecoilValue(projectSettingsState);
 
-  if (pSettings?.project?.id) {
-    return (
-      <Auth0Provider
-        domain="https://auth.chainlit.io"
-        clientId="ADo93BBXDn8Z35lEi8arCWiR7C0ncrjx"
-        authorizationParams={{
-          redirect_uri: `${window.location.origin}/api/auth/callback`
-        }}
-        useRefreshTokens={true}
-        cacheLocation="localstorage"
-      >
-        {children}
-      </Auth0Provider>
-    );
-  } else {
-    return <>{children}</>;
-  }
+  // if (pSettings?.project?.id) {
+  return (
+    <Auth0Provider
+      domain="https://auth.daovous.xyz"
+      clientId="4ZStsN96Ru4Ko1b9itlhLysyoDW9QudW"
+      authorizationParams={{
+        redirect_uri: `${window.location.origin}/api/auth/callback`
+      }}
+      useRefreshTokens={true}
+      cacheLocation="localstorage"
+    >
+      {children}
+    </Auth0Provider>
+  );
+  // } else {
+  //   return <>{children}</>;
+  // }
 });

@@ -260,7 +260,7 @@ async def get_member_role(request: Request):
 
     auth_client = await get_auth_client_from_request(request)
     res = await auth_client.get_member_role()
-    return PlainTextResponse(content=res)
+    return JSONResponse(content=res)
 
 
 @app.post("/project/conversations")
@@ -532,6 +532,7 @@ async def process_message(session: Session, author: str, input_str: str):
                     "author": author,
                     "content": input_str,
                     "authorIsUser": True,
+                    "sessionId": session['id'],
                 }
             )
 
