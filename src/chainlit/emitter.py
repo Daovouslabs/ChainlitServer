@@ -19,12 +19,12 @@ class ChainlitEmitter:
 
     def _get_session_property(self, property_name: str, raise_error=True):
         """Helper method to get a property from the session."""
-        if not hasattr(self, "session") or property_name not in self.session:
+        if not hasattr(self, "session") or not hasattr(self.session, property_name):
             if raise_error:
                 raise ValueError(f"Session does not have property '{property_name}'")
             else:
                 return None
-        return self.session[property_name]
+        return getattr(self.session, property_name)
 
     @property
     def emit(self):
@@ -125,6 +125,8 @@ class ChainlitEmitter:
             msg_dict,
         )
 
-    def send_token(self, id: Union[str, int], token: str):
+    def send_token(self, id: Union[str, int], token: str, is_sequence=False):
         """Send a message token to the UI."""
-        return self.emit("stream_token", {"id": id, "token": token})
+        return self.emit(
+            "stream_token", {"id": id, "token": token, "isSequence": is_sequence}
+        )

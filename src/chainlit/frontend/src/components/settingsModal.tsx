@@ -1,3 +1,8 @@
+import { useRecoilState } from 'recoil';
+
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
+import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';
+import ExpandIcon from '@mui/icons-material/Expand';
 import {
   Dialog,
   DialogContent,
@@ -5,14 +10,12 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListSubheader,
-  Switch
+  ListSubheader
 } from '@mui/material';
-import { useRecoilState } from 'recoil';
+
 import { settingsState } from 'state/settings';
-import ExpandIcon from '@mui/icons-material/Expand';
-import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
-import EmojiObjectsIcon from '@mui/icons-material/EmojiObjects';
+
+import Switch from './switch';
 
 export default function SettingsModal() {
   const [settings, setSettings] = useRecoilState(settingsState);
@@ -33,13 +36,12 @@ export default function SettingsModal() {
           sx={{ width: '100%', maxWidth: 360 }}
           subheader={<ListSubheader>Settings</ListSubheader>}
         >
-          <ListItem>
+          <ListItem sx={{ display: 'flex', gap: 1 }}>
             <ListItemIcon>
               <ExpandIcon />
             </ListItemIcon>
             <ListItemText id="switch-expand-all" primary="Expand Messages" />
             <Switch
-              edge="end"
               onChange={() =>
                 setSettings((old) => ({ ...old, expandAll: !old.expandAll }))
               }
@@ -49,13 +51,12 @@ export default function SettingsModal() {
               }}
             />
           </ListItem>
-          <ListItem>
+          <ListItem sx={{ display: 'flex', gap: 1 }}>
             <ListItemIcon>
               <EmojiObjectsIcon />
             </ListItemIcon>
             <ListItemText id="hide-cot" primary="Hide Chain of Thought" />
             <Switch
-              edge="end"
               onChange={() =>
                 setSettings((old) => ({ ...old, hideCot: !old.hideCot }))
               }
@@ -65,13 +66,12 @@ export default function SettingsModal() {
               }}
             />
           </ListItem>
-          <ListItem>
+          <ListItem sx={{ display: 'flex', gap: 1 }}>
             <ListItemIcon>
               <DarkModeOutlined />
             </ListItemIcon>
             <ListItemText id="switch-theme" primary="Dark mode" />
             <Switch
-              edge="end"
               onChange={() => {
                 const variant = settings.theme === 'light' ? 'dark' : 'light';
                 localStorage.setItem('themeVariant', variant);

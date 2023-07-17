@@ -13,6 +13,11 @@ from chainlit.client.base import BaseDBClient
 from chainlit.telemetry import trace_event
 from chainlit.types import ElementType, ElementDisplay, ElementSize
 
+mime_types = {
+    "text": "text/plain",
+    "tasklist": "application/json",
+}
+
 
 @dataclass
 class Element:
@@ -73,9 +78,10 @@ class Element:
 
     async def persist(self, client: BaseDBClient):
         if not self.url and self.content and not self.id:
+            # Only guess the mime type when the content is binary
             mime = (
-                "text/plain"
-                if self.type == "text"
+                mime_types[self.type]
+                if self.type in mime_types
                 else filetype.guess_mime(self.content)
             )
             self.url = await client.upload_element(content=self.content, mime=mime)
@@ -97,7 +103,7 @@ class Element:
 
         await self.preprocess_content()
 
-        if for_id:
+        if for_id and for_id not in self.for_ids:
             self.for_ids.append(for_id)
 
         # We have a client, persist the element
@@ -110,9 +116,11 @@ class Element:
 
         element = self.to_dict()
 
+        # Adding this out of to_dict since the dict will be persisted in the DB
         element["content"] = self.content
 
         if self.emitter.emit and element:
+            # Element was already sent
             if len(self.for_ids) > 1:
                 trace_event(f"update {self.__class__.__name__}")
                 await self.emitter.emit(
@@ -145,6 +153,9 @@ class Avatar(Element):
             raise ValueError("Must provide url or content to send element")
 
         element = self.to_dict()
+
+        # Adding this out of to_dict since the dict will be persisted in the DB
+        element["content"] = self.content
 
         if self.emitter.emit and element:
             trace_event(f"send {self.__class__.__name__}")
@@ -219,14 +230,17 @@ class TaskStatus(Enum):
 class Task:
     title: str = None
     status: TaskStatus = TaskStatus.READY
+    forId: str = None
 
     def __init__(
         self,
         title: str,
         status: TaskStatus = TaskStatus.READY,
+        forId: str = None,
     ):
         self.title = title
         self.status = status
+        self.forId = forId
 
     def __post_init__(self) -> None:
         super().__post_init__()
@@ -254,7 +268,8 @@ class TaskList(Element):
     async def preprocess_content(self):
         # serialize enum
         tasks = [
-            {"title": task.title, "status": task.status.value} for task in self.tasks
+            {"title": task.title, "status": task.status.value, "forId": task.forId}
+            for task in self.tasks
         ]
 
         # store stringified json in content so that it's correctly stored in the database
@@ -269,3 +284,14 @@ class TaskList(Element):
 @dataclass
 class Audio(Element):
     type: ElementType = "audio"
+
+
+@dataclass
+class Video(Element):
+    type: ElementType = "video"
+    size: ElementSize = "medium"
+
+
+@dataclass
+class File(Element):
+    type: ElementType = "file"

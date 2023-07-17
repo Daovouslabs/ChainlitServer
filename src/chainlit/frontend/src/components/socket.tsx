@@ -1,6 +1,12 @@
 import { wsEndpoint } from 'api';
+import { deepEqual } from 'helpers/object';
 import { memo, useEffect } from 'react';
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import io from 'socket.io-client';
+
+import { useAuth } from 'hooks/auth';
+
+import { IAction, actionState } from 'state/action';
 import {
   IMessage,
   IToken,
@@ -10,13 +16,9 @@ import {
   sessionState,
   tokenCountState
 } from 'state/chat';
-import { userEnvState } from 'state/user';
-import { useAuth } from 'hooks/auth';
-import io from 'socket.io-client';
 import { IElement, elementState } from 'state/element';
-import { IAction, actionState } from 'state/action';
-import { deepEqual } from 'helpers/object';
 import { projectSettingsState } from 'state/project';
+import { userEnvState } from 'state/user';
 
 const compareMessageIds = (a: IMessage, b: IMessage) => {
   if (a.id && b.id) return a.id === b.id;
@@ -57,9 +59,13 @@ export default memo(function Socket() {
     });
 
     socket.on('connect', () => {
-      console.log('connected', socket.id);
       socket.emit('connection_successful');
       setSession((s) => ({ ...s!, error: false }));
+    });
+
+    socket.on('session', ({ sessionId }) => {
+      // Attach the session id to the next reconnection attempts
+      socket.auth = { sessionId };
     });
 
     socket.on('connect_error', (err) => {
@@ -128,7 +134,7 @@ export default memo(function Socket() {
       setMessages((oldMessages) => [...oldMessages, message]);
     });
 
-    socket.on('stream_token', ({ id, token }: IToken) => {
+    socket.on('stream_token', ({ id, token, isSequence }: IToken) => {
       setMessages((oldMessages) => {
         const index = oldMessages.findIndex(
           (m) => (m.id && m.id === id) || (m.tempId && m.tempId === id)
@@ -136,7 +142,11 @@ export default memo(function Socket() {
         if (index === -1) return oldMessages;
         const oldMessage = oldMessages[index];
         const newMessage = { ...oldMessage };
-        newMessage.content += token;
+        if (isSequence) {
+          newMessage.content = token;
+        } else {
+          newMessage.content += token;
+        }
         return [
           ...oldMessages.slice(0, index),
           newMessage,

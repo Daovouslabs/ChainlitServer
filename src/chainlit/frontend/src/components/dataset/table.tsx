@@ -1,14 +1,17 @@
-import { useRecoilValue } from 'recoil';
-import { Alert, Box, Stack, Typography } from '@mui/material';
-import InfiniteLoader from 'react-window-infinite-loader';
-import { FixedSizeList } from 'react-window';
+import { useCallback, useEffect, useState } from 'react';
 import AutoSizer from 'react-virtualized-auto-sizer';
+import { FixedSizeList } from 'react-window';
+import InfiniteLoader from 'react-window-infinite-loader';
+import { useRecoilValue } from 'recoil';
+
+import { Alert, Box, Stack, Typography } from '@mui/material';
+
+import { IChat } from 'state/chat';
+import { clientState } from 'state/client';
+import { datasetFiltersState } from 'state/dataset';
+
 import DeleteConversationButton from './deleteConversationButton';
 import OpenConversationButton from './openConversationButton';
-import { useCallback, useEffect, useState } from 'react';
-import { datasetFiltersState } from 'state/dataset';
-import { clientState } from 'state/client';
-import { IChat } from 'state/chat';
 
 export interface IPageInfo {
   hasNextPage: boolean;
@@ -69,13 +72,13 @@ export default function ConversationTable() {
 
   useEffect(() => {
     refetchConversations();
-  }, [df, client]);
+  }, [refetchConversations]);
 
   const loadMoreItems = useCallback(() => {
     if (prevPageInfo?.hasNextPage) {
       fetchConversations(prevPageInfo.endCursor);
     }
-  }, [prevPageInfo]);
+  }, [prevPageInfo, fetchConversations]);
 
   if (error) {
     return <Alert severity="error">{(error as any).message}</Alert>;

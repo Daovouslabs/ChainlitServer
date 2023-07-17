@@ -1,3 +1,4 @@
+import * as kill from "tree-kill";
 import { execSync, spawn } from "child_process";
 import { join } from "path";
 import { readdirSync, existsSync, unlinkSync } from "fs";
@@ -49,12 +50,22 @@ export async function runTest(test: string) {
         console.log("Running with local db");
       }
 
-      try {
-        childProcess = await runChainlit(testDir, file, localDb);
-        runSpec(test);
-      } finally {
-        childProcess?.kill();
-      }
+      return new Promise(async (resolve, reject) => {
+        try {
+          childProcess = await runChainlit(testDir, file, localDb);
+          runSpec(test);
+        } finally {
+          kill(childProcess.pid, "SIGKILL", function (err) {
+            if (err) {
+              console.log("Error while trying to kill process");
+              reject(err);
+            } else {
+              console.log("Process killed successfully");
+              resolve(true);
+            }
+          });
+        }
+      });
     }
   };
 
@@ -82,7 +93,7 @@ function runCommand(command: string, cwd = ROOT) {
 
 export function installChainlit() {
   runCommand("npm run build", FRONTEND_DIR);
-  runCommand("pip3 install -e ./src");
+  runCommand(`poetry install -C ${CHAINLIT_DIR} --with tests`);
 }
 
 export function runSpec(test: string) {
@@ -96,14 +107,23 @@ export function runSpec(test: string) {
 export async function runChainlit(dir: string, file: string, localDb = false) {
   return new Promise((resolve, reject) => {
     // Headless + CI mode
-    const options = ["run", file, "-h", "-c"];
+    const options = [
+      "run",
+      "-C",
+      CHAINLIT_DIR,
+      "chainlit",
+      "run",
+      file,
+      "-h",
+      "-c",
+    ];
 
     if (localDb) {
       options.push("--db");
       options.push("local");
     }
 
-    const server = spawn("chainlit", options, {
+    const server = spawn("poetry", options, {
       cwd: dir,
     });
 

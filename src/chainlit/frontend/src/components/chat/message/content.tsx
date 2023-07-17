@@ -1,11 +1,15 @@
+import { memo } from 'react';
 import { ReactMarkdown } from 'react-markdown/lib/react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Typography, Link, Stack } from '@mui/material';
-import { IElements } from 'state/element';
-import { memo } from 'react';
-import { IAction } from 'state/action';
-import ElementRef from 'components/element/ref';
+
+import { Link, Stack, Typography } from '@mui/material';
+
 import Code from 'components/Code';
+import ElementRef from 'components/element/ref';
+
+import { IAction } from 'state/action';
+import { IElements } from 'state/element';
+
 import InlinedElements from './inlined';
 
 interface Props {
