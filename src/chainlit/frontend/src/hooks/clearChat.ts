@@ -1,7 +1,8 @@
 import { useRecoilValue, useSetRecoilState } from 'recoil';
+
 import { actionState } from 'state/action';
 import { messagesState, sessionState, tokenCountState } from 'state/chat';
-import { sideViewState, elementState } from 'state/element';
+import { elementState, sideViewState } from 'state/element';
 
 export default function useClearChat() {
   const setMessages = useSetRecoilState(messagesState);
@@ -13,6 +14,7 @@ export default function useClearChat() {
 
   return () => {
     session?.socket.disconnect();
+    if (session) session.socket.auth = {};
     session?.socket.connect();
     setMessages([]);
     setElements([]);

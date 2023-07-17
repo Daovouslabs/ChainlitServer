@@ -1,7 +1,8 @@
 import { atom } from 'recoil';
 import { Socket } from 'socket.io-client';
-import { IMember } from './user';
+
 import { IElement } from './element';
+import { IMember } from './user';
 
 export interface ILLMSettings {
   model_name: string;
@@ -40,6 +41,7 @@ export interface IMessage {
 export interface IToken {
   id: number | string;
   token: string;
+  isSequence: boolean;
 }
 
 export interface INestedMessage extends IMessage {
@@ -105,4 +107,11 @@ export const historyOpenedState = atom<boolean>({
 export const askUserState = atom<IAsk | undefined>({
   key: 'AskUser',
   default: undefined
+});
+
+export const highlightMessage = atom<
+  IMessage['id'] | IMessage['tempId'] | null
+>({
+  key: 'HighlightMessage',
+  default: null
 });

@@ -1,5 +1,6 @@
-import { createTheme } from '@mui/material/styles';
 import { grey, primary, white } from 'palette';
+
+import { createTheme } from '@mui/material/styles';
 
 const typography = {
   fontFamily: ['Inter', 'sans-serif'].join(',')
@@ -18,6 +19,15 @@ const components = {
   MuiLink: {
     defaultProps: {
       fontWeight: 500
+    }
+  },
+  MuiFormHelperText: {
+    defaultProps: {
+      sx: {
+        m: 0,
+        fontWeight: 400,
+        color: grey[500]
+      }
     }
   }
 };
@@ -57,7 +67,7 @@ const darkTheme = createTheme({
       main: '#F80061',
       dark: primary[800],
       light: '#FFE7EB',
-      contrastText: grey[100]
+      contrastText: white
     },
     secondary: {
       main: '#9757D7',
@@ -89,7 +99,7 @@ const lightTheme = createTheme({
       main: '#F80061',
       dark: primary[800],
       light: '#FFE7EB',
-      contrastText: grey[850]
+      contrastText: white
     },
     secondary: {
       main: '#9757D7',

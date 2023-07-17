@@ -43,6 +43,9 @@ enable_telemetry = true
 # List of environment variables to be provided by each user to use the app.
 user_env = []
 
+# Duration (in seconds) during which the session is saved when the connection is lost
+session_timeout = 3600
+
 [UI]
 # Name of the app and chatbot.
 name = "Chatbot"
@@ -162,6 +165,8 @@ class ProjectSettings:
     local_db_path: str = None
     # Path to the local file system
     local_fs_path: str = None
+    # Duration (in seconds) during which the session is saved when the connection is lost
+    session_timeout: int = 3600
 
 @dataclass_json
 @dataclass()

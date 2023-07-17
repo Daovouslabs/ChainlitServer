@@ -52,27 +52,11 @@ class MessageBase(ABC):
 
     async def update(
         self,
-        author: str = None,
-        content: str = None,
-        language: str = None,
-        prompt: str = None,
-        llm_settings: LLMSettings = None,
     ):
         """
         Update a message already sent to the UI.
         """
         trace_event("update_message")
-
-        if author:
-            self.author = author
-        if content:
-            self.content = content
-        if language:
-            self.language = language
-        if prompt:
-            self.prompt = prompt
-        if llm_settings:
-            self.llmSettings = llm_settings
 
         msg_dict = self.to_dict()
 
@@ -110,10 +94,10 @@ class MessageBase(ABC):
 
         return self.id or self.temp_id
 
-    async def stream_token(self, token: str):
+    async def stream_token(self, token: str, is_sequence=False):
         """
         Sends a token to the UI. This is useful for streaming messages.
-        Once all tokens have been streamed, call .send() to persist the message.
+        Once all tokens have been streamed, call .send() to end the stream and persist the message if persistence is enabled.
         """
 
         if not self.streaming:
@@ -121,8 +105,14 @@ class MessageBase(ABC):
             msg_dict = self.to_dict()
             await self.emitter.stream_start(msg_dict)
 
-        self.content += token
-        await self.emitter.send_token(id=self.id or self.temp_id, token=token)
+        if is_sequence:
+            self.content = token
+        else:
+            self.content += token
+
+        await self.emitter.send_token(
+            id=self.id or self.temp_id, token=token, is_sequence=is_sequence
+        )
 
 
 class Message(MessageBase):
@@ -194,12 +184,35 @@ class Message(MessageBase):
         trace_event("send_message")
         id = await super().send()
 
-        action_coros = [action.send(for_id=str(id)) for action in self.actions]
-        element_coros = [element.send(for_id=str(id)) for element in self.elements]
-        all_coros = action_coros + element_coros
-        await asyncio.gather(*all_coros)
+        for action in self.actions:
+            await action.send(for_id=str(id))
+
+        for element in self.elements:
+            await element.send(for_id=str(id))
 
         return id
+
+    async def update(self):
+        """
+        Send the message to the UI and persist it in the cloud if a project ID is configured.
+        Return the ID of the message.
+        """
+        trace_event("send_message")
+        await super().update()
+
+        id = self.id or self.temp_id
+
+        actions_to_update = [action for action in self.actions if action.forId is None]
+
+        elements_to_update = [el for el in self.elements if id not in el.for_ids]
+
+        for action in actions_to_update:
+            await action.send(for_id=str(id))
+
+        for element in elements_to_update:
+            await element.send(for_id=str(id))
+
+        return True
 
 
 class ErrorMessage(MessageBase):

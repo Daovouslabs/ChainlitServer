@@ -1,24 +1,34 @@
-import { Box, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRecoilValue } from 'recoil';
+
+import { Box, Typography } from '@mui/material';
+
+import { useQuery } from 'hooks/query';
+
+import { clientState } from 'state/client';
 import {
-  elementState,
   IAudioElement,
   IElement,
+  IFileElement,
   IImageElement,
   IPdfElement,
-  ITextElement
+  ITextElement,
+  IVideoElement,
+  elementState
 } from 'state/element';
-import TextElement from './text';
+
+import AudioElement from './audio';
+import FileElement from './file';
 import ImageElement from './image';
 import PDFElement from './pdf';
-import { useQuery } from 'hooks/query';
-import { useEffect, useState } from 'react';
-import { clientState } from 'state/client';
-import AudioElement from './audio';
+import TextElement from './text';
+import VideoElement from './video';
 
 export const renderElement = (element: IElement): JSX.Element | null => {
   switch (element.type) {
+    case 'file':
+      return <FileElement element={element as IFileElement} />;
     case 'image':
       return <ImageElement element={element as IImageElement} />;
     case 'text':
@@ -27,6 +37,8 @@ export const renderElement = (element: IElement): JSX.Element | null => {
       return <PDFElement element={element as IPdfElement} />;
     case 'audio':
       return <AudioElement element={element as IAudioElement} />;
+    case 'video':
+      return <VideoElement element={element as IVideoElement} />;
     default:
       return null;
   }

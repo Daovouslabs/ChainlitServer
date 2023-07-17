@@ -1,11 +1,15 @@
-import { ElementType, IElements, AllElements } from 'state/element';
-import InlinedImageList from 'components/element/inlined/images';
 import { Stack } from '@mui/material';
-import InlinedTextList from 'components/element/inlined/texts';
-import { IAction } from 'state/action';
+
 import InlinedActionList from 'components/action/inlined';
-import InlinedPDFList from 'components/element/inlined/pdfs';
 import InlinedAudioList from 'components/element/inlined/audios';
+import InlinedFileList from 'components/element/inlined/files';
+import InlinedImageList from 'components/element/inlined/images';
+import InlinedPDFList from 'components/element/inlined/pdfs';
+import InlinedTextList from 'components/element/inlined/texts';
+import InlinedVideoList from 'components/element/inlined/videos';
+
+import { IAction } from 'state/action';
+import { AllElements, ElementType, IElements } from 'state/element';
 
 interface Props {
   elements: IElements;
@@ -52,6 +56,12 @@ export default function InlinedElements({ elements, actions }: Props) {
       ) : null}
       {elementsByType.audio?.length ? (
         <InlinedAudioList items={elementsByType.audio} />
+      ) : null}
+      {elementsByType.video?.length ? (
+        <InlinedVideoList items={elementsByType.video} />
+      ) : null}
+      {elementsByType.file?.length ? (
+        <InlinedFileList items={elementsByType.file} />
       ) : null}
       {actions.length ? <InlinedActionList actions={actions} /> : null}
     </Stack>
