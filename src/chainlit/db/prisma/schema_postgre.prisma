@@ -15,6 +15,8 @@ model Conversation {
   createdAt DateTime  @default(now())
   messages  Message[]
   elements  Element[]
+
+  @@index([authorId, createdAt(sort: Desc)])
 }
 
 model Element {
@@ -47,6 +49,8 @@ model Message {
   prompt         String?
   llmSettings    Json?
   ts_vector      Unsupported("tsvector")?
+
+  @@index([humanFeedback, authorIsUser, createdAt(sort: Desc)])
 }
 
 model Example {
