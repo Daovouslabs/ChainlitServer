@@ -5,6 +5,8 @@ import asyncio
 import aiohttp
 from python_graphql_client import GraphqlClient
 
+from chainlit.client.base import UserDict
+
 from chainlit.client.base import BaseDBClient, BaseAuthClient, PaginatedResponse, PageInfo
 
 from chainlit.logger import logger
@@ -38,11 +40,7 @@ def get_access_token():
 
 
 class GraphQLClient:
-    def __init__(self, access_token: str):
-        # self.headers = {
-        #     "Authorization": access_token,
-        #     "content-type": "application/json",
-        # }
+    def __init__(self):
         graphql_endpoint = config.graphql_url
         self.graphql_client = GraphqlClient(
             endpoint=graphql_endpoint
@@ -91,11 +89,30 @@ class CustomAuthClient(BaseAuthClient, GraphQLClient):
         mgmt_api_token = get_access_token()
         self.auth0 = Auth0(AUTH0_DOMAIN, mgmt_api_token)
 
+        # init user_info
+        self._get_user_infos()
+
     async def is_project_member(self):
         return True
+    
+    def _get_role(self):
+        return [r.get('name') for r in self.auth0.users.list_roles(self.author_id).get('roles', {})]
 
     async def get_member_role(self):
-        return self.auth0.users.list_roles(self.author_id).get('roles', {})
+        return self._get_role()
+
+    async def get_user_infos(self) -> UserDict:
+        return self._get_user_infos()
+    
+    def _get_user_infos(self) -> UserDict:
+        res = self.auth0.users.get(self.author_id)
+        self.user_infos = {
+            "openId": self.author_id,
+            "name": res.get('name'),
+            "email": res.get('email'),
+            "roles": self._get_role()
+        }
+        return self.user_infos
 
     async def get_project_members(self):
         return []
@@ -106,31 +123,53 @@ def base64_id_to_int(id_b64encode: str) -> int:
 
 class CustomDBClient(BaseDBClient, GraphQLClient):
     conversation_id: Optional[str] = None
-    author_id: Optional[str] = None
+    user_infos: Optional[UserDict] = None
+    # author_id: Optional[str] = None
     lock: asyncio.Lock
 
-    def __init__(self, access_token: str):
+    def __init__(self, user_infos: Optional[UserDict] = None):
         self.lock = asyncio.Lock()
         # 解码access_token 获取用户openid
-        if access_token:
-            token_parsed = parse_access_token(access_token)
-            self.author_id = token_parsed.get('sub')
-        super().__init__(access_token)
+        # if access_token:
+        #     token_parsed = parse_access_token(access_token)
+        #     self.author_id = token_parsed.get('sub')
+        # super().__init__(access_token)
+        self.user_infos = user_infos if user_infos else {}
+        super().__init__()
 
-    async def create_conversation(self, sessionId: str=None) -> int|str:
+    async def create_user(self, variables: UserDict) -> bool:
+        if not variables:
+            return False
+        mutation = """
+            mutation ($openId: String!, $name: String!, $email: String!, $roles: [String!]!) {
+                insert_User_one(object: {openId: $openId, name: $name, email: $email, roles: $roles}, on_conflict: {constraint: User_openId_key, update_columns: [roles, name, email]}) {
+                    id
+                }
+            }
+            """
+        res = await self.mutation(mutation, variables)
+        if self.check_for_errors(res):
+            logger.warning("Could not create user.")
+            return False
+        return True
+
+    async def get_project_members(self):
+        return []
+
+    async def create_conversation(self) -> int|str:
         # If we run multiple send concurrently, we need to make sure we don't create multiple conversations.
         async with self.lock:
             if self.conversation_id:
                 return self.conversation_id
 
             mutation = """
-            mutation ($sessionId: String, $authorId: String) {
-				insert_Conversation_one(object: {sessionId: $sessionId, authorId: $authorId}) {
+            mutation ($authorId: String) {
+				insert_Conversation_one(object: {authorId: $authorId}) {
 					id
 				}
             }
             """
-            variables = {"sessionId": sessionId, "authorId": self.author_id}
+            variables = {"authorId": self.user_infos.get('openId')}
             res = await self.mutation(mutation, variables)
 
             if self.check_for_errors(res):
@@ -140,8 +179,8 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             id_b64encode = res["data"]["insert_Conversation_one"]["id"]
             return base64_id_to_int(id_b64encode)
 
-    async def get_conversation_id(self, sessionId: str=None):
-        self.conversation_id = await self.create_conversation(sessionId)
+    async def get_conversation_id(self):
+        self.conversation_id = await self.create_conversation()
 
         return self.conversation_id
 
@@ -256,7 +295,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 "first": pagination.first,
                 "cursor": pagination.cursor,
                 "withFeedback": filter.feedback if filter.feedback else [-1, 0, 1],
-                "authorId": self.author_id,
+                "authorId": self.user_infos.get('openId'),
                 "search": filter.search,
             }
         else:
@@ -298,7 +337,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 "first": pagination.first,
                 "cursor": pagination.cursor,
                 "withFeedback": filter.feedback if filter.feedback else [-1, 0, 1],
-                "authorId": self.author_id,
+                "authorId": self.user_infos.get('openId'),
             }
         res = await self.query(query, variables)
         self.check_for_errors(res, raise_error=True)
@@ -318,7 +357,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             conversations.append(node)
 
         page_info = res["data"][query_name]["pageInfo"]
-
+        
         return PaginatedResponse(
             pageInfo=PageInfo(
                 hasNextPage=page_info["hasNextPage"],
@@ -344,7 +383,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         raise NotImplementedError
 
     async def create_message(self, variables: Dict[str, Any]) -> int:
-        c_id = await self.get_conversation_id(variables.get('sessionId'))
+        c_id = await self.get_conversation_id()
 
         if not c_id:
             logger.warning("Missing conversation ID, could not persist the message.")

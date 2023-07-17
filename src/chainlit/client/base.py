@@ -42,9 +42,10 @@ class MessageDict(TypedDict):
 
 class UserDict(TypedDict):
     id: Optional[int]
+    openId: Optional[str]
     name: Optional[str]
     email: Optional[str]
-    role: str
+    roles: Optional[List[str]]
 
 
 class ElementDict(TypedDict):

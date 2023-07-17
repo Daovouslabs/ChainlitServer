@@ -77,6 +77,8 @@ async def get_db_client_from_request(
     # Get the auth client
     auth_client = await get_auth_client(authorization)
 
+    print(auth_client.user_infos)
+
     # Get the db client
     db_client = await get_db_client(authorization, auth_client.user_infos)
 

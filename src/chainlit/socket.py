@@ -14,6 +14,7 @@ from chainlit.emitter import ChainlitEmitter
 from chainlit.action import Action
 from chainlit.message import Message, ErrorMessage
 from chainlit.telemetry import trace_event
+from chainlit.client.base import BaseAuthClient
 from chainlit.client.cloud import CloudAuthClient
 from chainlit.logger import logger
 from chainlit.server import socket
@@ -105,7 +106,7 @@ async def connection_successful(sid):
     emitter_var.set(ChainlitEmitter(session))
     loop_var.set(asyncio.get_event_loop())
 
-    if isinstance(session.auth_client, CloudAuthClient) and config.project.database in [
+    if isinstance(session.auth_client, BaseAuthClient) and config.project.database in [
         "local",
         "custom",
     ]:

@@ -253,7 +253,7 @@ async def get_member_role(request: Request):
     """Get the role of a member."""
 
     auth_client = await get_auth_client_from_request(request)
-    res = await auth_client.get_member_role()
+    res = auth_client.user_infos["roles"] if auth_client.user_infos else ["USER"]
     return JSONResponse(content=res)
 
 

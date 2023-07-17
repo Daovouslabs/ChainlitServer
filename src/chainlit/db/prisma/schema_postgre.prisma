@@ -8,14 +8,29 @@ generator client {
   recursive_type_depth = 5
 }
 
+model User {
+  id            Int             @id @default(autoincrement())
+  openId        String          @unique
+  createdAt     DateTime        @default(now())
+  email         String?         @unique
+  name          String?
+  roles          String[]
+  conversations Conversation[]
+
+  @@index([openId, createdAt(sort: Desc)])
+}
+
+// ALTER TABLE "User"
+//    ADD UNIQUE USING INDEX "User_openId_key"
+
 model Conversation {
   id        Int       @id @default(autoincrement())
-  authorId  String
-  sessionId String
+  sessionId String?
   createdAt DateTime  @default(now())
   messages  Message[]
   elements  Element[]
-
+  authorId  String?
+  author    User? @relation(fields: [authorId], references: [openId])
   @@index([authorId, createdAt(sort: Desc)])
 }
 
