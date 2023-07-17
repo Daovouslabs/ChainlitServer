@@ -277,7 +277,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                                         count(distinct: true)
                                     }
                                 }
-                                Messages(order_by: {createdAt: asc}) {
+                                Messages(order_by: {createdAt: asc}, limit: 1) {
                                     content
                                 }
                             }
@@ -321,7 +321,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                                     count(distinct: true)
                                 }
                             }
-                            Messages(order_by: {createdAt: asc}) {
+                            Messages(order_by: {createdAt: asc}, limit: 1) {
                                 content
                             }
                         }
