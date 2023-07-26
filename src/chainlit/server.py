@@ -51,10 +51,10 @@ async def lifespan(app: FastAPI):
 
     logger.info(f"Your app is available at {url}")
 
-    if not config.run.headless:
-        # Add a delay before opening the browser
-        await asyncio.sleep(1)
-        webbrowser.open(url)
+    # if not config.run.headless:
+    #     # Add a delay before opening the browser
+    #     await asyncio.sleep(1)
+    #     webbrowser.open(url)
 
     if config.project.database == "local":
         from prisma import Client, register
@@ -147,29 +147,29 @@ socket = SocketManager(
 # -------------------------------------------------------------------------------
 
 
-def get_html_template():
-    PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+# def get_html_template():
+#     PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
 
-    default_url = "https://github.com/Chainlit/chainlit"
-    url = config.ui.github or default_url
+#     default_url = "https://github.com/Chainlit/chainlit"
+#     url = config.ui.github or default_url
 
-    tags = f"""<title>{config.ui.name}</title>
-    <meta name="description" content="{config.ui.description}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="{config.ui.name}">
-    <meta property="og:description" content="{config.ui.description}">
-    <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
-    <meta property="og:url" content="{url}">"""
+#     tags = f"""<title>{config.ui.name}</title>
+#     <meta name="description" content="{config.ui.description}">
+#     <meta property="og:type" content="website">
+#     <meta property="og:title" content="{config.ui.name}">
+#     <meta property="og:description" content="{config.ui.description}">
+#     <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
+#     <meta property="og:url" content="{url}">"""
 
-    index_html_file_path = os.path.join(build_dir, "index.html")
+#     index_html_file_path = os.path.join(build_dir, "index.html")
 
-    with open(index_html_file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-        content = content.replace(PLACEHOLDER, tags)
-        return content
+#     with open(index_html_file_path, "r", encoding="utf-8") as f:
+#         content = f.read()
+#         content = content.replace(PLACEHOLDER, tags)
+#         return content
 
 
-html_template = get_html_template()
+# html_template = get_html_template()
 
 
 @app.post("/completion")
@@ -310,19 +310,20 @@ async def serve_file(filename: str):
 
 
 def register_wildcard_route_handler():
-    @app.get("/{path:path}")
-    async def serve(path: str):
-        """Serve the UI and app files."""
-        if path:
-            app_file_path = os.path.join(config.root, path)
-            ui_file_path = os.path.join(build_dir, path)
-            file_paths = [app_file_path, ui_file_path]
+    # @app.get("/{path:path}")
+    # async def serve(path: str):
+    #     """Serve the UI and app files."""
+    #     if path:
+    #         app_file_path = os.path.join(config.root, path)
+    #         ui_file_path = os.path.join(build_dir, path)
+    #         file_paths = [app_file_path, ui_file_path]
 
-            for file_path in file_paths:
-                if os.path.isfile(file_path):
-                    return FileResponse(file_path)
+    #         for file_path in file_paths:
+    #             if os.path.isfile(file_path):
+    #                 return FileResponse(file_path)
 
-        return HTMLResponse(content=html_template, status_code=200)
+    #     return HTMLResponse(content=html_template, status_code=200)
+    pass
 
 
 import chainlit.socket  # noqa

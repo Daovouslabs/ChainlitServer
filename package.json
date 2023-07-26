@@ -18,6 +18,7 @@
     "formatPython": "black `git ls-files | grep '.py$'`",
     "installUiDeps": "cd src/chainlit/frontend && npm install",
     "buildUi": "(cd src/chainlit/frontend && npm run build)",
-    "build": "(cd src/chainlit/frontend && npm run build) && (cd src && poetry build -f wheel)"
+    "buildALL": "(cd src/chainlit/frontend && npm run build) && (cd src && poetry build -f wheel)",
+    "build": "cd src && poetry build -f wheel"
   }
 }

@@ -261,28 +261,16 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $search: String
                 $authorId: String
             ) {
-                search_messages_connection(args: {search: $search}, where: {humanFeedback: {_in: $withFeedback}, authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}}}, first: $first, after: $cursor, order_by: {createdAt: desc}) {
+                  search_messages_connection(args: {search: $search}, after: $cursor, first: $first, where: {Conversation: {authorId: {_eq: $authorId}}, authorIsUser: {_eq: true}, humanFeedback: {_in: $withFeedback}}, order_by: {createdAt: desc}) {
                     edges {
+                        cursor
                         node {
+                            content
                             Conversation {
                                 id
-                                createdAt
-                                Elements_aggregate {
-                                    aggregate {
-                                        count(distinct: true)
-                                    }
-                                }
-                                Messages_aggregate {
-                                    aggregate {
-                                        count(distinct: true)
-                                    }
-                                }
-                                Messages(order_by: {createdAt: asc}, limit: 1) {
-                                    content
-                                }
                             }
+                            createdAt
                         }
-                        cursor
                     }
                     pageInfo {
                         endCursor
@@ -299,33 +287,23 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 "search": filter.search,
             }
         else:
-            query_name = "Conversation_connection"
+            query_name = "Message_connection"
             query = """query (
                 $first: Int
                 $cursor: String
                 $withFeedback: [Int]=[-1, 0, 1]
                 $authorId: String
             ) {
-                Conversation_connection(first: $first, after: $cursor, where: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}, order_by: {createdAt: desc}) {
+                Message_connection(after: $cursor, first: $first, where: {humanFeedback: {_in: $withFeedback}, authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}}}, order_by: {createdAt: desc}) {
                     edges {
-                        node {
-                            id
-                            createdAt
-                            Elements_aggregate {
-                                aggregate {
-                                    count(distinct: true)
-                                }
-                            }
-                            Messages_aggregate {
-                                aggregate {
-                                    count(distinct: true)
-                                }
-                            }
-                            Messages(order_by: {createdAt: asc}, limit: 1) {
-                                content
-                            }
-                        }
                         cursor
+                        node {
+                            content
+                            Conversation {
+                                id
+                            }
+                            createdAt
+                        }
                     }
                     pageInfo {
                         endCursor
@@ -345,13 +323,13 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         conversations = []
 
         for edge in res["data"][query_name]["edges"]:
-            conversation = edge["node"]['Conversation'] if query_name != "Conversation_connection" else edge["node"]
+            node = edge["node"]
             node = {
-                "id": base64_id_to_int(conversation['id']),
-                "createdAt": conversation['createdAt'],
-                "elementCount": conversation['Elements_aggregate']['aggregate']['count'],
-                'messageCount': conversation['Messages_aggregate']['aggregate']['count'],
-                "messages": conversation['Messages'],
+                "id": base64_id_to_int(node['Conversation']['id']),
+                "createdAt": node['createdAt'],
+                # "elementCount": conversation['Conversation']['Elements_aggregate']['aggregate']['count'],
+                # 'messageCount': conversation['Conversation']['Messages_aggregate']['aggregate']['count'],
+                "messages": [{"content": node['content']}],
             }
             # node to cloud
             conversations.append(node)
