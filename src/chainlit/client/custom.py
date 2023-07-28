@@ -203,7 +203,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 					node {
 						createdAt
 						id
-						Messages {
+						Messages(order_by: {createdAt: asc}) {
 							id
 							isError
 							indent
@@ -261,7 +261,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $search: String
                 $authorId: String
             ) {
-                  search_messages_connection(args: {search: $search}, after: $cursor, first: $first, where: {Conversation: {authorId: {_eq: $authorId}}, authorIsUser: {_eq: true}, humanFeedback: {_in: $withFeedback}}, order_by: {createdAt: desc}) {
+                  search_messages_connection(args: {search: $search}, after: $cursor, first: $first, where: {authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}}, order_by: {createdAt: desc}) {
                     edges {
                         cursor
                         node {
@@ -282,7 +282,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             variables = {
                 "first": pagination.first,
                 "cursor": pagination.cursor,
-                "withFeedback": filter.feedback if filter.feedback else [-1, 0, 1],
+                "withFeedback": [filter.feedback] if filter.feedback else [-1, 0, 1],
                 "authorId": self.user_infos.get('openId'),
                 "search": filter.search,
             }
@@ -294,7 +294,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $withFeedback: [Int]=[-1, 0, 1]
                 $authorId: String
             ) {
-                Message_connection(after: $cursor, first: $first, where: {humanFeedback: {_in: $withFeedback}, authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}}}, order_by: {createdAt: desc}) {
+                Message_connection(after: $cursor, first: $first, where: {authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}}, order_by: {createdAt: desc}) {
                     edges {
                         cursor
                         node {
@@ -314,7 +314,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             variables = {
                 "first": pagination.first,
                 "cursor": pagination.cursor,
-                "withFeedback": filter.feedback if filter.feedback else [-1, 0, 1],
+                "withFeedback": [filter.feedback] if filter.feedback else [-1, 0, 1],
                 "authorId": self.user_infos.get('openId'),
             }
         res = await self.query(query, variables)
