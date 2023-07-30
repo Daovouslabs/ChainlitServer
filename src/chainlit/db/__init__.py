@@ -8,6 +8,10 @@ CUSTOM_SCHEMA_PATH = os.path.join(PACKAGE_ROOT, "db/prisma/schema_postgre.prisma
 
 def db_push():
     from importlib import reload
+
+    import prisma
+    from prisma.cli.prisma import run
+
     if config.project.database == "local":
         args = ["db", "push", f"--schema={SCHEMA_PATH}"]
         env = {"LOCAL_DB_PATH": os.environ.get("LOCAL_DB_PATH")}

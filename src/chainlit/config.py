@@ -192,22 +192,19 @@ class ProjectSettings(DataClassJsonMixin):
     # Duration (in seconds) during which the session is saved when the connection is lost
     session_timeout: int = 3600
 
-@dataclass_json
 @dataclass()
-class ExampleBody:
+class ExampleBody(DataClassJsonMixin):
     name: str = None
     prompt: str = None
     status: str = None
     logo: Optional[str] = None
 
-@dataclass_json
 @dataclass()
-class Examples:
+class Examples(DataClassJsonMixin):
     examples: List[ExampleBody] = None
 
-@dataclass_json
 @dataclass()
-class S3:
+class S3(DataClassJsonMixin):
     domain: str
     bucket: str
 

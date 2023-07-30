@@ -157,30 +157,33 @@ socket = SocketManager(
 # -------------------------------------------------------------------------------
 
 
-# def get_html_template():
-#     PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+def get_html_template():
+    PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+    JS_PLACEHOLDER = "<!-- JS INJECTION PLACEHOLDER -->"
 
-#     default_url = "https://github.com/Chainlit/chainlit"
-#     url = config.ui.github or default_url
+    default_url = "https://github.com/Chainlit/chainlit"
+    url = config.ui.github or default_url
 
-#     tags = f"""<title>{config.ui.name}</title>
-#     <meta name="description" content="{config.ui.description}">
-#     <meta property="og:type" content="website">
-#     <meta property="og:title" content="{config.ui.name}">
-#     <meta property="og:description" content="{config.ui.description}">
-#     <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
-#     <meta property="og:url" content="{url}">"""
+    tags = f"""<title>{config.ui.name}</title>
+    <meta name="description" content="{config.ui.description}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{config.ui.name}">
+    <meta property="og:description" content="{config.ui.description}">
+    <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
+    <meta property="og:url" content="{url}">"""
 
-#     index_html_file_path = os.path.join(build_dir, "index.html")
+    js = None
+    if config.ui.theme:
+        js = f"""<script>window.theme = {json.dumps(config.ui.theme.to_dict())}</script>"""
 
-#     with open(index_html_file_path, "r", encoding="utf-8") as f:
-#         content = f.read()
-#         content = content.replace(PLACEHOLDER, tags)
-#         return content
+    index_html_file_path = os.path.join(build_dir, "index.html")
 
-
-# html_template = get_html_template()
-
+    with open(index_html_file_path, "r", encoding="utf-8") as f:
+        content = f.read()
+        content = content.replace(PLACEHOLDER, tags)
+        if js:
+            content = content.replace(JS_PLACEHOLDER, js)
+        return content
 
 @app.post("/completion")
 async def completion(completion: CompletionRequest):
@@ -334,20 +337,12 @@ async def get_favicon():
 
 
 def register_wildcard_route_handler():
-    # @app.get("/{path:path}")
-    # async def serve(path: str):
-    #     """Serve the UI and app files."""
-    #     if path:
-    #         app_file_path = os.path.join(config.root, path)
-    #         ui_file_path = os.path.join(build_dir, path)
-    #         file_paths = [app_file_path, ui_file_path]
-
-    #         for file_path in file_paths:
-    #             if os.path.isfile(file_path):
-    #                 return FileResponse(file_path)
-
-    #     return HTMLResponse(content=html_template, status_code=200)
-    pass
+    @app.get("/{path:path}")
+    async def serve(path: str):
+        html_template = get_html_template()
+        """Serve the UI files."""
+        response = HTMLResponse(content=html_template, status_code=200)
+        return response
 
 
 import chainlit.socket  # noqa

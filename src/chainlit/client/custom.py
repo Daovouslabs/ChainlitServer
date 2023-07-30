@@ -5,7 +5,7 @@ import asyncio
 import aiohttp
 from python_graphql_client import GraphqlClient
 
-from chainlit.client.base import UserDict
+from chainlit.client.base import MessageDict, UserDict
 
 from chainlit.client.base import BaseDBClient, BaseAuthClient, PaginatedResponse, PageInfo
 
@@ -206,6 +206,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 						Messages(order_by: {createdAt: asc}) {
 							id
 							isError
+							parentId
 							indent
 							author
 							content
@@ -360,7 +361,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
     async def get_message(self):
         raise NotImplementedError
 
-    async def create_message(self, variables: Dict[str, Any]) -> int:
+    async def create_message(self, variables: MessageDict) -> int:
         c_id = await self.get_conversation_id()
 
         if not c_id:
@@ -370,8 +371,8 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         variables["conversationId"] = c_id
 
         mutation = """
-        mutation ($conversationId: Int!, $author: String!, $content: String!, $language: String, $prompt: String, $llmSettings: jsonb, $isError: Boolean=false, $indent: Int=0, $authorIsUser: Boolean=false, $waitForAnswer: Boolean=false) {
-            insert_Message_one(object: {author: $author, authorIsUser: $authorIsUser, content: $content, conversationId: $conversationId, indent: $indent, isError: $isError, language: $language, llmSettings: $llmSettings, prompt: $prompt, waitForAnswer: $waitForAnswer}) {
+        mutation ($conversationId: Int!, $author: String!, $content: String!, $language: String, $prompt: String, $llmSettings: jsonb, $isError: Boolean=false, $parentId: Int=-1, $indent: Int=0, $authorIsUser: Boolean=false, $waitForAnswer: Boolean=false) {
+            insert_Message_one(object: {author: $author, authorIsUser: $authorIsUser, content: $content, conversationId: $conversationId, indent: $indent, parentId: $parentId, isError: $isError, language: $language, llmSettings: $llmSettings, prompt: $prompt, waitForAnswer: $waitForAnswer}) {
                 id
             }
         }
@@ -386,10 +387,10 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         return base64_id_to_int(id_b64encode)
         
 
-    async def update_message(self, message_id: int, variables: Dict[str, Any]) -> bool:
+    async def update_message(self, message_id: int, variables: MessageDict) -> bool:
         mutation = """
-        mutation ($messageId: Int!, $author: String!, $content: String!, $language: String, $prompt: String, $llmSettings: jsonb) {
-            update_Message_by_pk(pk_columns: {id: $messageId}, _set: {author: $author, content: $content, language: $language, llmSettings: $llmSettings, prompt: $prompt}) {
+        mutation ($messageId: Int!, $author: String!, $content: String!, $language: String, $prompt: String, $parentId: Int, $llmSettings: jsonb) {
+            update_Message_by_pk(pk_columns: {id: $messageId}, _set: {author: $author, content: $content, parentId: $parentId, language: $language, llmSettings: $llmSettings, prompt: $prompt}) {
                 id
             }
         }
@@ -450,42 +451,54 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 
         return res["data"]["Element_connection"]['edges']['node']
 
-    async def upsert_element(self, variables):
+    async def create_element(self, variables):
         c_id = await self.get_conversation_id()
 
         if not c_id:
             logger.warning("Missing conversation ID, could not persist the element.")
             return None
 
-        if "id" in variables:
-            mutation_name = "update_Element_by_pk"
-            mutation = """
-            mutation ($conversationId: Int!, $id: Int!, $forIds: [String!]!) {
-                update_Element_by_pk(pk_columns: {id: $id}, _set: {conversationId: $conversationId, forIds: $forIds}) {
-                    id,
-                }
+        mutation_name = "insert_Element_one"
+        mutation = """
+        mutation ($conversationId: Int!, $type: String!, $url: String!, $name: String!, $display: String!, $forIds: [String!]!, $size: String, $language: String) {
+            insert_Element_one(object: {conversationId: $conversationId, display: $display, forIds: $forIds, language: $language, name: $name, size: $size, type: $type, url: $url}) {
+                id,
+                type,
+                url,
+                name,
+                display,
+                size,
+                language,
+                forIds
             }
-            """
-            variables["conversationId"] = c_id
-            res = await self.mutation(mutation, variables)
-        else:
-            mutation_name = "insert_Element_one"
-            mutation = """
-            mutation ($conversationId: Int!, $type: String!, $url: String!, $name: String!, $display: String!, $forIds: [String!]!, $size: String, $language: String) {
-                insert_Element_one(object: {conversationId: $conversationId, display: $display, forIds: $forIds, language: $language, name: $name, size: $size, type: $type, url: $url}) {
-                    id,
-                    type,
-                    url,
-                    name,
-                    display,
-                    size,
-                    language,
-                    forIds
-                }
+        }
+        """
+        variables["conversationId"] = c_id
+        res = await self.mutation(mutation, variables)
+
+        if self.check_for_errors(res):
+            logger.warning("Could not persist element.")
+            return None
+
+        return res["data"][mutation_name]
+    
+    async def update_element(self, variables):
+        c_id = await self.get_conversation_id()
+
+        if not c_id:
+            logger.warning("Missing conversation ID, could not persist the element.")
+            return None
+
+        mutation_name = "update_Element_by_pk"
+        mutation = """
+        mutation ($conversationId: Int!, $id: Int!, $forIds: [String!]!) {
+            update_Element_by_pk(pk_columns: {id: $id}, _set: {conversationId: $conversationId, forIds: $forIds}) {
+                id,
             }
-            """
-            variables["conversationId"] = c_id
-            res = await self.mutation(mutation, variables)
+        }
+        """
+        variables["conversationId"] = c_id
+        res = await self.mutation(mutation, variables)
 
         if self.check_for_errors(res):
             logger.warning("Could not persist element.")
