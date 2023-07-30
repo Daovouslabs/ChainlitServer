@@ -1,17 +1,17 @@
-from auth0.authentication.token_verifier import (
-    TokenVerifier,
-    AsymmetricSignatureVerifier,
-)
-from typing import Dict
-from chainlit.logger import logger
-import time
-import requests
+import json
+import os
 import sys
 import time
 import webbrowser
-import os
-import json
+from typing import Dict
 
+import requests
+from auth0.authentication.token_verifier import (
+    AsymmetricSignatureVerifier,
+    TokenVerifier,
+)
+
+from chainlit.logger import logger
 
 AUTH0_DOMAIN = "auth.daovous.xyz"
 AUTH0_CLIENT_ID = "4ZStsN96Ru4Ko1b9itlhLysyoDW9QudW"

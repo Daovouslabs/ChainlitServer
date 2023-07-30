@@ -1,15 +1,12 @@
+import asyncio
 import json
 
-import asyncio
-
-from chainlit.context import emitter_var, loop_var
+from chainlit.action import Action
+from chainlit.client.base import MessageDict
+from chainlit.client.cloud import CloudAuthClient
+from chainlit.client.utils import get_auth_client, get_db_client
 from chainlit.config import config
-from chainlit.session import Session
-from chainlit.user_session import user_sessions
-from chainlit.client.utils import (
-    get_db_client,
-    get_auth_client,
-)
+from chainlit.context import emitter_var, loop_var
 from chainlit.emitter import ChainlitEmitter
 from chainlit.action import Action
 from chainlit.message import Message, ErrorMessage
@@ -17,13 +14,15 @@ from chainlit.telemetry import trace_event
 from chainlit.client.base import BaseAuthClient
 from chainlit.client.cloud import CloudAuthClient
 from chainlit.logger import logger
+from chainlit.message import ErrorMessage, Message
 from chainlit.server import socket
+from chainlit.session import Session
+from chainlit.telemetry import trace_event
+from chainlit.user_session import user_sessions
 
 
-def restore_existing_session(sid, auth, emit_fn, ask_user_fn):
+def restore_existing_session(sid, session_id, emit_fn, ask_user_fn):
     """Restore a session from the sessionId provided by the client."""
-
-    session_id = auth and auth.get("sessionId")
     if session := Session.get_by_id(session_id):
         session.restore(new_socket_id=sid)
         session.emit = emit_fn
@@ -68,21 +67,25 @@ async def connect(sid, environ, auth):
                 raise InterruptedError("Task stopped by user")
         return socket.call("ask", data, timeout=timeout, to=sid)
 
-    if restore_existing_session(sid, auth, emit_fn, ask_user_fn):
-        return
+    session_id = environ.get("HTTP_X_CHAINLIT_SESSION_ID")
+    if restore_existing_session(sid, session_id, emit_fn, ask_user_fn):
+        return True
 
+    db_client = None
     user_env = environ.get("HTTP_USER_ENV")
     authorization = environ.get("HTTP_AUTHORIZATION")
 
     try:
         auth_client = await get_auth_client(authorization)
-        db_client = await get_db_client(authorization, auth_client.user_infos)
+        if config.project.database:
+            db_client = await get_db_client(authorization, auth_client.user_infos)
         user_env = load_user_env(user_env)
     except ConnectionRefusedError as e:
         logger.error(f"ConnectionRefusedError: {e}")
         return False
 
-    session = Session(
+    Session(
+        id=session_id,
         socket_id=sid,
         emit=emit_fn,
         ask_user=ask_user_fn,
@@ -90,8 +93,6 @@ async def connect(sid, environ, auth):
         db_client=db_client,
         user_env=user_env,
     )
-
-    await socket.emit("session", data={"sessionId": session.id}, to=sid)
 
     trace_event("connection_successful")
     return True
@@ -116,14 +117,15 @@ async def connection_successful(sid):
         """Call the on_chat_start function provided by the developer."""
         await config.code.on_chat_start()
 
-    if config.code.lc_factory:
-        """Instantiate the langchain agent and store it in the session."""
-        agent = await config.code.lc_factory()
-        session.agent = agent
 
-    if config.code.llama_index_factory:
-        llama_instance = await config.code.llama_index_factory()
-        session.llama_instance = llama_instance
+@socket.on("clear_session")
+async def clean_session(sid):
+    if session := Session.get(sid):
+        # Clean up the user session
+        if session.id in user_sessions:
+            user_sessions.pop(session.id)
+        # Clean up the session
+        session.delete()
 
 
 @socket.on("disconnect")
@@ -156,73 +158,19 @@ async def stop(sid):
             await config.code.on_stop()
 
 
-async def process_message(session: Session, author: str, input_str: str):
+async def process_message(session: Session, message_dict: MessageDict):
     """Process a message from the user."""
-
     try:
         emitter = ChainlitEmitter(session)
         emitter_var.set(emitter)
         loop_var.set(asyncio.get_event_loop())
 
         await emitter.task_start()
+        await emitter.process_user_message(message_dict)
 
-        if session.db_client:
-            # If cloud is enabled, persist the message
-            await session.db_client.create_message(
-                {
-                    "author": author,
-                    "content": input_str,
-                    "authorIsUser": True,
-                }
-            )
-
-        langchain_agent = session.agent
-        llama_instance = session.llama_instance
-
-        if langchain_agent:
-            from chainlit.lc.agent import run_langchain_agent
-
-            # If a langchain agent is available, run it
-            if config.code.lc_run:
-                # If the developer provided a custom run function, use it
-                await config.code.lc_run(
-                    langchain_agent,
-                    input_str,
-                )
-                return
-            else:
-                # Otherwise, use the default run function
-                (
-                    raw_res,
-                    output_key,
-                    has_streamed_final_answer,
-                ) = await run_langchain_agent(
-                    langchain_agent, input_str, use_async=config.code.lc_agent_is_async
-                )
-
-                if config.code.lc_postprocess:
-                    # If the developer provided a custom postprocess function, use it
-                    await config.code.lc_postprocess(raw_res)
-                    return
-                elif output_key is not None:
-                    # Use the output key if provided
-                    res = raw_res[output_key]
-                else:
-                    # Otherwise, use the raw response
-                    res = raw_res
-
-            # Finally, send the response to the user
-            if not has_streamed_final_answer:
-                await Message(author=config.ui.name, content=res).send()
-
-        elif llama_instance:
-            from chainlit.llama_index.run import run_llama
-
-            await run_llama(llama_instance, input_str)
-
-        elif config.code.on_message:
-            # If no langchain agent is available, call the on_message function provided by the developer
-            await config.code.on_message(input_str)
+        message = Message.from_dict(message_dict)
+        if config.code.on_message:
+            await config.code.on_message(message.content.strip(), message.id)
     except InterruptedError:
         pass
     except Exception as e:
@@ -235,15 +183,12 @@ async def process_message(session: Session, author: str, input_str: str):
 
 
 @socket.on("ui_message")
-async def message(sid, data):
+async def message(sid, message):
     """Handle a message sent by the User."""
     session = Session.require(sid)
     session.should_stop = False
 
-    input_str = data["content"].strip()
-    author = data["author"]
-
-    await process_message(session, author, input_str)
+    await process_message(session, message)
 
 
 async def process_action(action: Action):

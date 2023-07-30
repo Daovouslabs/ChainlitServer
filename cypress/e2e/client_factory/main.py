@@ -1,14 +1,14 @@
-from typing import Literal, List, Dict
+from typing import Dict, List, Literal
 
 import chainlit as cl
 from chainlit.client.base import (
     BaseDBClient,
     ConversationDict,
-    Pagination,
     ConversationFilter,
-    PaginatedResponse,
-    MessageDict,
     ElementDict,
+    MessageDict,
+    PaginatedResponse,
+    Pagination,
     UserDict,
 )
 
@@ -49,14 +49,17 @@ class CustomClient(BaseDBClient):
     async def upload_element(self, content: bytes, mime: str, type: str=None, ext: str=None) -> str:
         raise NotImplementedError
 
-    async def upsert_element(self, variables: ElementDict) -> ElementDict:
+    async def create_element(self, variables: ElementDict) -> ElementDict:
+        raise NotImplementedError
+
+    async def update_element(self, variables: ElementDict) -> ElementDict:
         raise NotImplementedError
 
     async def get_element(self, conversation_id: int, element_id: int) -> ElementDict:
         raise NotImplementedError
 
     async def set_human_feedback(
-        self, message_id: int, feedback: Literal[-1, 0, 1]
+        self, message_id: str, feedback: Literal[-1, 0, 1]
     ) -> bool:
         raise NotImplementedError
 
@@ -68,4 +71,6 @@ async def client_factory(user_infos):
 
 @cl.on_chat_start
 async def on_chat_start():
-    await cl.Message("Hello").send()
+    msg = cl.Message(content="Hello")
+    msg.fail_on_persist_error = True
+    await msg.send()

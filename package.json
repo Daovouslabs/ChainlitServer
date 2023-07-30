@@ -11,7 +11,8 @@
     "typescript": "^5.0.4"
   },
   "scripts": {
-    "test": "npx ts-node ./cypress/support/e2e.ts && (cd src/chainlit/frontend && npm run test)",
+    "preinstall": "npx only-allow pnpm",
+    "test": "pnpm exec ts-node ./cypress/support/e2e.ts && (cd src/chainlit/frontend && pnpm run test)",
     "prepare": "husky install",
     "lintUi": "cd src/chainlit/frontend && npm run lint",
     "formatUi": "cd src/chainlit/frontend && npm run format",

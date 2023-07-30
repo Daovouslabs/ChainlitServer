@@ -1,14 +1,16 @@
+from typing import Optional
+
 from fastapi import Request
 
-from chainlit.config import config
-from chainlit.client.base import BaseDBClient, BaseAuthClient, UserDict
-from chainlit.client.local import LocalAuthClient, LocalDBClient
+from chainlit.client.base import BaseAuthClient, BaseDBClient, UserDict
 from chainlit.client.cloud import CloudAuthClient, CloudDBClient
+from chainlit.client.local import LocalAuthClient, LocalDBClient
+from chainlit.config import config
 from chainlit.client.custom import CustomAuthClient
 from chainlit.telemetry import trace_event
 
 
-async def get_auth_client(authorization: str) -> BaseAuthClient:
+async def get_auth_client(authorization: Optional[str]) -> BaseAuthClient:
     # Check authorization
     if not config.project.public and not authorization:
         # Refuse connection if the app is private and no access token is provided
@@ -37,7 +39,7 @@ async def get_auth_client(authorization: str) -> BaseAuthClient:
 
 
 async def get_db_client(
-    authorization: str = None, user_infos: UserDict = None
+    authorization: Optional[str] = None, user_infos: Optional[UserDict] = None
 ) -> BaseDBClient:
     # Create the database client
     if config.project.database == "cloud":
@@ -56,6 +58,8 @@ async def get_db_client(
 
         custom_db_client = await config.code.client_factory(user_infos)
         return custom_db_client
+
+    raise ValueError("Unknown database type")
 
 
 async def get_auth_client_from_request(

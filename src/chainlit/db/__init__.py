@@ -1,13 +1,12 @@
 import os
+
+from chainlit.config import PACKAGE_ROOT, config
 from chainlit.logger import logger
-from chainlit.config import config, PACKAGE_ROOT
 
 SCHEMA_PATH = os.path.join(PACKAGE_ROOT, "db/prisma/schema.prisma")
 CUSTOM_SCHEMA_PATH = os.path.join(PACKAGE_ROOT, "db/prisma/schema_postgre.prisma")
 
 def db_push():
-    from prisma.cli.prisma import run
-    import prisma
     from importlib import reload
     if config.project.database == "local":
         args = ["db", "push", f"--schema={SCHEMA_PATH}"]
