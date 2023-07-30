@@ -1,40 +1,41 @@
+import json
 import mimetypes
 
 mimetypes.add_type("application/javascript", ".js")
 mimetypes.add_type("text/css", ".css")
 
+import asyncio
 import os
+import uuid
 import webbrowser
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-
-from contextlib import asynccontextmanager
-from watchfiles import awatch
-
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import (
+    FileResponse,
     HTMLResponse,
     JSONResponse,
-    FileResponse,
     PlainTextResponse,
 )
+from fastapi.staticfiles import StaticFiles
 from fastapi_socketio import SocketManager
 from starlette.middleware.cors import CORSMiddleware
-import asyncio
+from watchfiles import awatch
 
-from chainlit.config import config, load_module, reload_config, DEFAULT_HOST
 from chainlit.client.utils import (
     get_auth_client_from_request,
     get_db_client_from_request,
 )
+from chainlit.config import DEFAULT_HOST, config, load_module, reload_config
+from chainlit.logger import logger
 from chainlit.markdown import get_markdown_str
 from chainlit.telemetry import trace_event
-from chainlit.logger import logger
 from chainlit.types import (
     CompletionRequest,
-    UpdateFeedbackRequest,
-    GetConversationsRequest,
     DeleteConversationRequest,
+    GetConversationsRequest,
+    UpdateFeedbackRequest,
 )
 
 
@@ -56,7 +57,7 @@ async def lifespan(app: FastAPI):
         webbrowser.open(url)
 
     if config.project.database == "local":
-        from prisma import Client, register
+        from prisma import Client, register  # type: ignore[attr-defined]
 
         client = Client()
         register(client)
@@ -122,6 +123,14 @@ build_dir = os.path.join(root_dir, "frontend/dist")
 
 app = FastAPI(lifespan=lifespan)
 
+app.mount("/public", StaticFiles(directory="public", check_dir=False), name="public")
+app.mount(
+    "/assets",
+    StaticFiles(packages=[("chainlit", os.path.join(build_dir, "assets"))]),
+    name="assets",
+)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -129,6 +138,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Define max HTTP data size to 100 MB
 max_message_size = 100 * 1024 * 1024
@@ -148,6 +158,7 @@ socket = SocketManager(
 
 def get_html_template():
     PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+    JS_PLACEHOLDER = "<!-- JS INJECTION PLACEHOLDER -->"
 
     default_url = "https://github.com/Chainlit/chainlit"
     url = config.ui.github or default_url
@@ -160,15 +171,18 @@ def get_html_template():
     <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
     <meta property="og:url" content="{url}">"""
 
+    js = None
+    if config.ui.theme:
+        js = f"""<script>window.theme = {json.dumps(config.ui.theme.to_dict())}</script>"""
+
     index_html_file_path = os.path.join(build_dir, "index.html")
 
     with open(index_html_file_path, "r", encoding="utf-8") as f:
         content = f.read()
         content = content.replace(PLACEHOLDER, tags)
+        if js:
+            content = content.replace(JS_PLACEHOLDER, js)
         return content
-
-
-html_template = get_html_template()
 
 
 @app.post("/completion")
@@ -264,16 +278,18 @@ async def get_conversation(request: Request, conversation_id: str):
     """Get a specific conversation."""
 
     db_client = await get_db_client_from_request(request)
-    res = await db_client.get_conversation(int(conversation_id))
+    res = await db_client.get_conversation(conversation_id)
     return JSONResponse(content=res)
 
 
 @app.get("/project/conversation/{conversation_id}/element/{element_id}")
-async def get_conversation(request: Request, conversation_id: str, element_id: str):
-    """Get a specific conversation."""
+async def get_conversation_element(
+    request: Request, conversation_id: str, element_id: str
+):
+    """Get a specific conversation element."""
 
     db_client = await get_db_client_from_request(request)
-    res = await db_client.get_element(int(conversation_id), int(element_id))
+    res = await db_client.get_element(conversation_id, element_id)
     return JSONResponse(content=res)
 
 
@@ -288,27 +304,32 @@ async def delete_conversation(request: Request, payload: DeleteConversationReque
 
 @app.get("/files/{filename:path}")
 async def serve_file(filename: str):
-    file_path = Path(config.project.local_fs_path) / filename
+    base_path = Path(config.project.local_fs_path).resolve()
+    file_path = (base_path / filename).resolve()
+
+    # Check if the base path is a parent of the file path
+    if base_path not in file_path.parents:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
     if file_path.is_file():
         return FileResponse(file_path)
     else:
-        return {"error": "File not found"}
+        raise HTTPException(status_code=404, detail="File not found")
+
+
+@app.get("/favicon.svg")
+async def get_favicon():
+    favicon_path = os.path.join(build_dir, "favicon.svg")
+    return FileResponse(favicon_path, media_type="image/svg+xml")
 
 
 def register_wildcard_route_handler():
     @app.get("/{path:path}")
     async def serve(path: str):
-        """Serve the UI and app files."""
-        if path:
-            app_file_path = os.path.join(config.root, path)
-            ui_file_path = os.path.join(build_dir, path)
-            file_paths = [app_file_path, ui_file_path]
-
-            for file_path in file_paths:
-                if os.path.isfile(file_path):
-                    return FileResponse(file_path)
-
-        return HTMLResponse(content=html_template, status_code=200)
+        html_template = get_html_template()
+        """Serve the UI files."""
+        response = HTMLResponse(content=html_template, status_code=200)
+        return response
 
 
 import chainlit.socket  # noqa

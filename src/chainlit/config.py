@@ -1,10 +1,12 @@
-from typing import Optional, Any, Callable, Union, Literal, List, Dict, TYPE_CHECKING
 import os
 import sys
-import tomli
-from pydantic.dataclasses import dataclass
-from dataclasses_json import dataclass_json
 from importlib import util
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Optional, Union
+
+import tomli
+from dataclasses_json import DataClassJsonMixin
+from pydantic.dataclasses import dataclass
+
 from chainlit.logger import logger
 from chainlit.version import __version__
 
@@ -61,6 +63,27 @@ hide_cot = false
 # Link to your github repo. This will add a github button in the UI's header.
 # github = ""
 
+# Override default MUI light theme. (Check theme.ts)
+[UI.theme.light]
+    #background = "#FAFAFA"
+    #paper = "#FFFFFF"
+
+    [UI.theme.light.primary]
+        #main = "#F80061"
+        #dark = "#980039"
+        #light = "#FFE7EB"
+
+# Override default MUI dark theme. (Check theme.ts)
+[UI.theme.dark]
+    #background = "#FAFAFA"
+    #paper = "#FFFFFF"
+
+    [UI.theme.dark.primary]
+        #main = "#F80061"
+        #dark = "#980039"
+        #light = "#FFE7EB"
+
+
 [meta]
 generated_by = "{__version__}"
 """
@@ -86,14 +109,34 @@ class RunSettings:
     ci: bool = False
 
 
-@dataclass_json
 @dataclass()
-class UISettings:
+class PaletteOptions(DataClassJsonMixin):
+    main: Optional[str] = ""
+    light: Optional[str] = ""
+    dark: Optional[str] = ""
+
+
+@dataclass()
+class Palette(DataClassJsonMixin):
+    primary: Optional[PaletteOptions] = None
+    background: Optional[str] = ""
+    paper: Optional[str] = ""
+
+
+@dataclass()
+class Theme(DataClassJsonMixin):
+    light: Optional[Palette] = None
+    dark: Optional[Palette] = None
+
+
+@dataclass()
+class UISettings(DataClassJsonMixin):
     name: str
     description: str = ""
     hide_cot: bool = False
     default_expand_messages: bool = False
-    github: str = None
+    github: Optional[str] = None
+    theme: Optional[Theme] = None
 
 
 @dataclass()
@@ -106,24 +149,14 @@ class CodeSettings:
     on_stop: Optional[Callable[[], Any]] = None
     on_chat_start: Optional[Callable[[], Any]] = None
     on_message: Optional[Callable[[str], Any]] = None
-    lc_agent_is_async: Optional[bool] = None
-    lc_run: Optional[Callable[[Any, str], str]] = None
-    lc_postprocess: Optional[Callable[[Any], str]] = None
-    lc_factory: Optional[Callable[[], Any]] = None
-    lc_rename: Optional[Callable[[str], str]] = None
-    llama_index_factory: Optional[Callable[[], Any]] = None
-    langflow_schema: Union[Dict, str] = None
+    author_rename: Optional[Callable[[str], str]] = None
     client_factory: Optional[Callable[[str], "BaseDBClient"]] = None
 
     def validate(self):
         requires_one_of = [
-            "lc_factory",
-            "llama_index_factory",
             "on_message",
             "on_chat_start",
         ]
-
-        mutually_exclusive = ["lc_factory", "llama_index_factory"]
 
         # Check if at least one of the required attributes is set
         if not any(getattr(self, attr) for attr in requires_one_of):
@@ -131,20 +164,11 @@ class CodeSettings:
                 f"Module should at least expose one of {', '.join(requires_one_of)} function"
             )
 
-        # Check if any mutually exclusive attributes are set together
-        for i, attr1 in enumerate(mutually_exclusive):
-            for attr2 in mutually_exclusive[i + 1 :]:
-                if getattr(self, attr1) and getattr(self, attr2):
-                    raise ValueError(
-                        f"Module should not expose both {attr1} and {attr2} functions"
-                    )
-
         return True
 
 
-@dataclass_json
 @dataclass()
-class ProjectSettings:
+class ProjectSettings(DataClassJsonMixin):
     # Enables Cloud features if provided
     id: Optional[str] = None
     # Whether the app is available to anonymous users or only to team members.
@@ -154,13 +178,13 @@ class ProjectSettings:
     # Whether to enable telemetry. No personal data is collected.
     enable_telemetry: bool = True
     # List of environment variables to be provided by each user to use the app. If empty, no environment variables will be asked to the user.
-    user_env: List[str] = None
+    user_env: Optional[List[str]] = None
     # Path to the local langchain cache database
-    lc_cache_path: str = None
+    lc_cache_path: Optional[str] = None
     # Path to the local chat db
-    local_db_path: str = None
+    local_db_path: Optional[str] = None
     # Path to the local file system
-    local_fs_path: str = None
+    local_fs_path: Optional[str] = None
     # Duration (in seconds) during which the session is saved when the connection is lost
     session_timeout: int = 3600
 
@@ -201,7 +225,13 @@ def load_module(target: str):
     sys.path.insert(0, target_dir)
 
     spec = util.spec_from_file_location(target, target)
+    if not spec or not spec.loader:
+        return
+
     module = util.module_from_spec(spec)
+    if not module:
+        return
+
     spec.loader.exec_module(module)
 
     sys.modules[target] = module

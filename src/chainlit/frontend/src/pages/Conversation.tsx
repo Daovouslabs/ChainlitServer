@@ -4,9 +4,9 @@ import { useRecoilValue } from 'recoil';
 
 import { Box } from '@mui/material';
 
-import MessageContainer from 'components/chat/message/container';
-import SideView from 'components/element/sideView';
-import Playground from 'components/playground';
+import SideView from 'components/atoms/element/sideView';
+import MessageContainer from 'components/organisms/chat/message/container';
+import Playground from 'components/organisms/playground';
 
 import { IAction } from 'state/action';
 import { IChat } from 'state/chat';
@@ -26,7 +26,7 @@ export default function Conversation() {
     setError(undefined);
 
     client
-      .getConversation(parseInt(id, 10))
+      .getConversation(id)
       .then((conversation) => setConversation(conversation))
       .catch((err) => {
         setError(err.message);
@@ -43,25 +43,15 @@ export default function Conversation() {
   return (
     <Box display="flex" flexGrow={1} width="100%" overflow="scroll">
       <Playground />
-      <Box
-        flexGrow={1}
-        display="flex"
-        flexDirection="column"
-        overflow="auto"
-        boxSizing="border-box"
-        px={{
-          xs: 2,
-          md: 0
-        }}
-      >
+
+      <SideView>
         <Box my={1} />
         <MessageContainer
           actions={actions}
           elements={elements}
           messages={conversation.messages}
         />
-      </Box>
-      <SideView />
+      </SideView>
     </Box>
   );
 }

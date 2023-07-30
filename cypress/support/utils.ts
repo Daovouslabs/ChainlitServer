@@ -50,7 +50,7 @@ export async function runTest(test: string) {
         console.log("Running with local db");
       }
 
-      return new Promise(async (resolve, reject) => {
+      await new Promise(async (resolve, reject) => {
         try {
           childProcess = await runChainlit(testDir, file, localDb);
           runSpec(test);
@@ -58,7 +58,7 @@ export async function runTest(test: string) {
           kill(childProcess.pid, "SIGKILL", function (err) {
             if (err) {
               console.log("Error while trying to kill process");
-              reject(err);
+              resolve(true);
             } else {
               console.log("Process killed successfully");
               resolve(true);
@@ -92,7 +92,7 @@ function runCommand(command: string, cwd = ROOT) {
 }
 
 export function installChainlit() {
-  runCommand("npm run build", FRONTEND_DIR);
+  runCommand("pnpm run build", FRONTEND_DIR);
   runCommand(`poetry install -C ${CHAINLIT_DIR} --with tests`);
 }
 
@@ -100,7 +100,7 @@ export function runSpec(test: string) {
   // Recording the cypress run is time consuming. Disabled by default.
   // const recordOptions = ` --record --key ${process.env.CYPRESS_RECORD_KEY} `;
   return runCommand(
-    `npx cypress run --record false --spec cypress/e2e/${test}/spec.cy.ts`
+    `pnpm exec cypress run --record false --spec cypress/e2e/${test}/spec.cy.ts`
   );
 }
 

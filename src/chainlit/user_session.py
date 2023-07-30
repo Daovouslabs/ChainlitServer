@@ -1,4 +1,5 @@
 from typing import Dict
+
 from chainlit.context import get_emitter
 
 user_sessions: Dict[str, Dict] = {}
@@ -25,8 +26,8 @@ class UserSession:
         user_session["id"] = emitter.session.id
         user_session["env"] = emitter.session.user_env
         user_session["user_infos"] = emitter.session.auth_client.user_infos
-        if emitter.session.agent:
-            user_session["agent"] = emitter.session.agent
+        if emitter.session.root_message:
+            user_session["root_message"] = emitter.session.root_message
 
         return user_session.get(key)
 
