@@ -2,55 +2,50 @@ import Switch, { SwitchProps } from 'components/atoms/switch';
 
 import { IInput } from 'types/Input';
 
-import SelectInput, {
-  SelectInputProps,
-  SelectItem
-} from './inputs/selectInput';
+import SelectInput, { SelectInputProps } from './inputs/selectInput';
 import TagsInput, { TagsInputProps } from './inputs/tagsInput';
 import TextInput, { TextInputProps } from './inputs/textInput';
 import Slider, { SliderProps } from './slider';
 
-interface IFormInput<T, I> extends IInput {
+export type TFormInputValue = string | number | boolean | string[] | undefined;
+
+export interface IFormInput<T, V extends TFormInputValue> extends IInput {
   type: T;
-  initial: I;
+  value?: V;
+  setField?(field: string, value: V, shouldValidate?: boolean): void;
 }
 
 export type TFormInput =
-  | (SwitchProps & IFormInput<'switch', boolean>)
-  | (SliderProps & IFormInput<'slider', number>)
-  | (SelectInputProps & IFormInput<'select', string>)
-  | (TextInputProps & IFormInput<'textinput', string>)
-  | (TagsInputProps & IFormInput<'tags', string[]>);
+  | (Omit<SwitchProps, 'checked'> & IFormInput<'switch', boolean>)
+  | (Omit<SliderProps, 'value'> & IFormInput<'slider', number>)
+  | (Omit<SelectInputProps, 'value'> & IFormInput<'select', string>)
+  | (Omit<TextInputProps, 'value'> & IFormInput<'textinput', string>)
+  | (Omit<TagsInputProps, 'value'> & IFormInput<'tags', string[]>);
 
 const FormInput = ({ element }: { element: TFormInput }): JSX.Element => {
   switch (element.type) {
     case 'select':
-      return (
-        <SelectInput
-          {...element}
-          items={element.items?.map((option: SelectItem) => ({
-            label: option.label,
-            value: option.value
-          }))}
-        />
-      );
+      return <SelectInput {...element} value={element.value ?? ''} />;
     case 'slider':
-      return <Slider {...element} />;
+      return <Slider {...element} value={element.value ?? 0} />;
     case 'tags':
-      return <TagsInput {...element} />;
+      return <TagsInput {...element} value={element.value ?? []} />;
     case 'switch':
       return (
         <Switch
           {...element}
+          checked={!!element.value}
           inputProps={{
-            id: element.id || undefined,
+            id: element.id,
             name: element.id
           }}
         />
       );
     case 'textinput':
-      return <TextInput {...element} placeholder={element.placeholder} />;
+      return <TextInput {...element} value={element.value ?? ''} />;
     default:
+      // Unimplemented element type if this errors
+      element satisfies never;
       return <></>;
   }
 };

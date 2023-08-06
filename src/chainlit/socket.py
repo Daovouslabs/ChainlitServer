@@ -1,5 +1,7 @@
 import asyncio
 import json
+from http.cookies import SimpleCookie
+from typing import Any, Dict
 
 from chainlit.action import Action
 from chainlit.client.base import MessageDict
@@ -19,6 +21,23 @@ from chainlit.server import socket
 from chainlit.session import Session
 from chainlit.telemetry import trace_event
 from chainlit.user_session import user_sessions
+
+
+def load_chainlit_initial_headers(http_cookie):
+    cookie = SimpleCookie(http_cookie)
+    cookie_string = ""
+    initial_headers = cookie.get("chainlit-initial-headers")
+    if (initial_headers):
+        cookie_string = initial_headers.value
+    if cookie_string:
+        try:
+            chainlit_initial_headers = json.loads(cookie_string)
+        except ValueError:
+            chainlit_initial_headers = {}
+    else:
+        chainlit_initial_headers = {}
+
+    return chainlit_initial_headers
 
 
 def restore_existing_session(sid, session_id, emit_fn, ask_user_fn):
@@ -71,14 +90,21 @@ async def connect(sid, environ, auth):
     if restore_existing_session(sid, session_id, emit_fn, ask_user_fn):
         return True
 
+    request_headers = load_chainlit_initial_headers(environ.get("HTTP_COOKIE"))
+
     db_client = None
     user_env = environ.get("HTTP_USER_ENV")
-    authorization = environ.get("HTTP_AUTHORIZATION")
 
     try:
-        auth_client = await get_auth_client(authorization)
+        auth_client = await get_auth_client(
+            handshake_headers=environ, request_headers=request_headers
+        )
         if config.project.database:
-            db_client = await get_db_client(authorization, auth_client.user_infos)
+            db_client = await get_db_client(
+                handshake_headers=environ,
+                request_headers=request_headers,
+                user_infos=auth_client.user_infos,
+            )
         user_env = load_user_env(user_env)
     except ConnectionRefusedError as e:
         logger.error(f"ConnectionRefusedError: {e}")
@@ -92,6 +118,7 @@ async def connect(sid, environ, auth):
         auth_client=auth_client,
         db_client=db_client,
         user_env=user_env,
+        initial_headers=request_headers,
     )
 
     trace_event("connection_successful")
@@ -209,3 +236,17 @@ async def call_action(sid, action):
     action = Action(**action)
 
     await process_action(action)
+
+
+@socket.on("chat_settings_change")
+async def change_settings(sid, settings: Dict[str, Any]):
+    """Handle change settings submit from the UI."""
+    session = Session.require(sid)
+    emitter_var.set(ChainlitEmitter(session))
+    loop_var.set(asyncio.get_event_loop())
+
+    for key, value in settings.items():
+        session.chat_settings[key] = value
+
+    if config.code.on_settings_update:
+        await config.code.on_settings_update(settings)
