@@ -19,6 +19,6 @@
     "lintPython": "cd src/ && poetry run mypy chainlit/",
     "formatPython": "black `git ls-files | grep '.py$'` && isort --profile=black .",
     "buildUi": "(cd src/chainlit/frontend && pnpm run build)",
-    "build": "(cd src/chainlit/frontend && pnpm run build) && (cd src && poetry build -f wheel)"
+    "build": "cd src && poetry build -f wheel"
   }
 }

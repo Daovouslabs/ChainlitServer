@@ -123,12 +123,12 @@ build_dir = os.path.join(root_dir, "frontend/dist")
 
 app = FastAPI(lifespan=lifespan)
 
-app.mount("/public", StaticFiles(directory="public", check_dir=False), name="public")
-app.mount(
-    "/assets",
-    StaticFiles(packages=[("chainlit", os.path.join(build_dir, "assets"))]),
-    name="assets",
-)
+# app.mount("/public", StaticFiles(directory="public", check_dir=False), name="public")
+# app.mount(
+#     "/assets",
+#     StaticFiles(packages=[("chainlit", os.path.join(build_dir, "assets"))]),
+#     name="assets",
+# )
 
 
 app.add_middleware(
@@ -156,33 +156,33 @@ socket = SocketManager(
 # -------------------------------------------------------------------------------
 
 
-def get_html_template():
-    PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
-    JS_PLACEHOLDER = "<!-- JS INJECTION PLACEHOLDER -->"
+# def get_html_template():
+#     PLACEHOLDER = "<!-- TAG INJECTION PLACEHOLDER -->"
+#     JS_PLACEHOLDER = "<!-- JS INJECTION PLACEHOLDER -->"
 
-    default_url = "https://github.com/Chainlit/chainlit"
-    url = config.ui.github or default_url
+#     default_url = "https://github.com/Chainlit/chainlit"
+#     url = config.ui.github or default_url
 
-    tags = f"""<title>{config.ui.name}</title>
-    <meta name="description" content="{config.ui.description}">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="{config.ui.name}">
-    <meta property="og:description" content="{config.ui.description}">
-    <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
-    <meta property="og:url" content="{url}">"""
+#     tags = f"""<title>{config.ui.name}</title>
+#     <meta name="description" content="{config.ui.description}">
+#     <meta property="og:type" content="website">
+#     <meta property="og:title" content="{config.ui.name}">
+#     <meta property="og:description" content="{config.ui.description}">
+#     <meta property="og:image" content="https://chainlit-cloud.s3.eu-west-3.amazonaws.com/logo/chainlit_banner.png">
+#     <meta property="og:url" content="{url}">"""
 
-    js = None
-    if config.ui.theme:
-        js = f"""<script>window.theme = {json.dumps(config.ui.theme.to_dict())}</script>"""
+#     js = None
+#     if config.ui.theme:
+#         js = f"""<script>window.theme = {json.dumps(config.ui.theme.to_dict())}</script>"""
 
-    index_html_file_path = os.path.join(build_dir, "index.html")
+#     index_html_file_path = os.path.join(build_dir, "index.html")
 
-    with open(index_html_file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-        content = content.replace(PLACEHOLDER, tags)
-        if js:
-            content = content.replace(JS_PLACEHOLDER, js)
-        return content
+#     with open(index_html_file_path, "r", encoding="utf-8") as f:
+#         content = f.read()
+#         content = content.replace(PLACEHOLDER, tags)
+#         if js:
+#             content = content.replace(JS_PLACEHOLDER, js)
+#         return content
 
 @app.post("/completion")
 async def completion(completion: CompletionRequest):
@@ -336,19 +336,20 @@ async def get_favicon():
 
 
 def register_wildcard_route_handler():
-    @app.get("/{path:path}")
-    async def serve(request: Request, path: str):
-        html_template = get_html_template()
-        """Serve the UI files."""
-        response = HTMLResponse(content=html_template, status_code=200)
+    pass
+    # @app.get("/{path:path}")
+    # async def serve(request: Request, path: str):
+    #     html_template = get_html_template()
+    #     """Serve the UI files."""
+    #     response = HTMLResponse(content=html_template, status_code=200)
 
-        response.set_cookie(
-            key="chainlit-initial-headers",
-            value=json.dumps(dict(request.headers)),
-            httponly=True,
-        )
+    #     response.set_cookie(
+    #         key="chainlit-initial-headers",
+    #         value=json.dumps(dict(request.headers)),
+    #         httponly=True,
+    #     )
 
-        return response
+    #     return response
 
 
 import chainlit.socket  # noqa

@@ -14,7 +14,6 @@ async def get_auth_client(
     handshake_headers: Optional[Dict[str, str]] = None,
     request_headers: Optional[Headers] = None,
 ) -> BaseAuthClient:
-    authorization = request_headers.get('Authorization')
     auth_client: Optional[BaseAuthClient] = None
     if config.code.auth_client_factory:
         auth_client = await config.code.auth_client_factory(
@@ -35,9 +34,10 @@ async def get_auth_client(
                 raise ConnectionRefusedError("User is not a member of the project")
 
         return auth_client
-    elif authorization and config.project.database == "custom":
+    elif config.project.database == "custom":
         auth_client = CustomAuthClient(
-            access_token=authorization
+            handshake_headers=handshake_headers,
+            request_headers=request_headers,
         )
         return auth_client
 

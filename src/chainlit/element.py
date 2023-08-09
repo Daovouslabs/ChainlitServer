@@ -91,8 +91,12 @@ class Element:
                 else filetype.guess_extension(self.content)
             )
             self.url = await client.upload_element(content=self.content, mime=mime, type=self.type, ext=ext)
-        element = await client.upsert_element(self.to_dict())
-        return element
+        if not self.persisted:
+            element_dict = await client.create_element(self.to_dict())
+            self.persisted = True
+        else:
+            element_dict = await client.update_element(self.to_dict())
+        return element_dict
 
     async def before_emit(self, element: Dict) -> Dict:
         return element

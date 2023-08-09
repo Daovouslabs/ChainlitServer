@@ -10,9 +10,9 @@ readme = "README.md"
 exclude = [
     "**/frontend/**/*",
 ]
-include = [
-    "**/frontend/dist/**/*",
-]
+# include = [
+#     "**/frontend/dist/**/*",
+# ]
 
 [tool.poetry.scripts]
 # command_name = module_for_handler : function_for_handler

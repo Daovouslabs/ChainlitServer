@@ -6,7 +6,7 @@ import aiohttp
 from python_graphql_client import GraphqlClient
 
 from chainlit.client.base import MessageDict, UserDict
-
+from starlette.datastructures import Headers
 from chainlit.client.base import BaseDBClient, BaseAuthClient, PaginatedResponse, PageInfo
 
 from chainlit.logger import logger
@@ -79,11 +79,23 @@ class GraphQLClient:
 
 class CustomAuthClient(BaseAuthClient, GraphQLClient):
 
-    def __init__(self, access_token: str):
-        if access_token:
-            # parse user openid
-            token_parsed = parse_access_token(access_token)
-            self.author_id = token_parsed.get('sub')
+    def __init__(self, 
+        handshake_headers: Optional[Dict[str, str]] = None,
+        request_headers: Optional[Headers] = None,
+    ):
+        access_token = None
+
+        if handshake_headers:
+            access_token = handshake_headers.get("HTTP_AUTHORIZATION")
+        elif request_headers:
+            access_token = request_headers.get("Authorization")
+
+        if access_token is None:
+            raise ConnectionRefusedError("No access token provided")
+        
+        # parse user openid
+        token_parsed = parse_access_token(access_token)
+        self.author_id = token_parsed.get('sub')
 
         # call system api
         mgmt_api_token = get_access_token()
@@ -127,13 +139,18 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
     # author_id: Optional[str] = None
     lock: asyncio.Lock
 
-    def __init__(self, user_infos: Optional[UserDict] = None):
+    def __init__(self, 
+        handshake_headers: Optional[Dict[str, str]] = None,
+        request_headers: Optional[Headers] = None,
+        user_infos: Optional[UserDict] = None
+    ):
         self.lock = asyncio.Lock()
         # 解码access_token 获取用户openid
         # if access_token:
         #     token_parsed = parse_access_token(access_token)
         #     self.author_id = token_parsed.get('sub')
         # super().__init__(access_token)
+        print(user_infos)
         self.user_infos = user_infos if user_infos else {}
         super().__init__()
 
