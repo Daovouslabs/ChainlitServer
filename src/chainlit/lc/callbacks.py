@@ -66,6 +66,8 @@ class BaseLangchainCallbackHandler(BaseCallbackHandler):
     # We want to handler to be called on every message
     always_verbose: bool = True
 
+    mode: str = 'dev'
+
     def __init__(
         self,
         *,
@@ -74,6 +76,7 @@ class BaseLangchainCallbackHandler(BaseCallbackHandler):
         stream_prefix: bool = False,
         stream_final_answer: bool = False,
         root_message: Optional[Message] = None,
+        mode: str = 'dev'
     ) -> None:
         self.emitter = get_emitter()
         self.prompts = []
@@ -81,6 +84,7 @@ class BaseLangchainCallbackHandler(BaseCallbackHandler):
         self.sequence = []
         self.last_prompt = None
         self.stream = None
+        self.mode = mode
 
         if root_message:
             self.root_message = root_message
@@ -371,49 +375,54 @@ class AsyncLangchainCallbackHandler(BaseLangchainCallbackHandler, AsyncCallbackH
         self.add_prompt(prompt, llm_settings)
 
     async def on_llm_new_token(self, token: str, **kwargs: Any) -> None:
-        if not self.stream:
-            self.start_stream()
-        await self.send_token(token)
+        pass
+        # if self.mode == 'dev':
+        #     if not self.stream:
+        #         self.start_stream()
+        #     await self.send_token(token)
 
-        if not self.stream_final_answer:
-            return
+        #     if not self.stream_final_answer:
+        #         return
 
-        self.append_to_last_tokens(token)
+        #     self.append_to_last_tokens(token)
 
-        if self.answer_reached:
-            if not self.final_stream:
-                self.final_stream = Message(author=config.ui.name, content="")
-            await self.send_token(token, final=True)
-        else:
-            self.answer_reached = self.check_if_answer_reached()
+        #     if self.answer_reached:
+        #         if not self.final_stream:
+        #             self.final_stream = Message(author=config.ui.name, content="")
+        #         await self.send_token(token, final=True)
+        #     else:
+        #         self.answer_reached = self.check_if_answer_reached()
 
     async def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        self.pop_prompt()
-        if response.llm_output is not None:
-            if "token_usage" in response.llm_output:
-                token_usage = response.llm_output["token_usage"]
-                if "total_tokens" in token_usage:
-                    await self.emitter.update_token_count(token_usage["total_tokens"])
-        if self.final_stream:
-            await self.final_stream.send()
+        if self.mode == 'dev':
+            self.pop_prompt()
+            if response.llm_output is not None:
+                if "token_usage" in response.llm_output:
+                    token_usage = response.llm_output["token_usage"]
+                    if "total_tokens" in token_usage:
+                        await self.emitter.update_token_count(token_usage["total_tokens"])
+            if self.final_stream:
+                await self.final_stream.send()
 
     async def on_chain_start(
         self, serialized: Dict[str, Any], inputs: Dict[str, Any], **kwargs: Any
     ) -> None:
-        message = self.create_message(author=serialized["id"][-1])
-        self.add_in_sequence(message)
-        await self.add_message(message)
+        if self.mode == 'dev':
+            message = self.create_message(author=serialized["id"][-1])
+            self.add_in_sequence(message)
+            await self.add_message(message)
 
     async def on_chain_end(self, outputs: Dict[str, Any], **kwargs: Any) -> None:
-        output_key = list(outputs.keys())[0]
-        if output_key:
-            prompt = self.consume_last_prompt()
-            parent_id = self.get_last_message().parent_id
-            message = self.create_message(
-                outputs[output_key], prompt, parent_id=parent_id
-            )
-            await self.add_message(message)
-        self.pop_sequence()
+        if self.mode == 'dev':
+            output_key = list(outputs.keys())[0]
+            if output_key:
+                prompt = self.consume_last_prompt()
+                parent_id = self.get_last_message().parent_id
+                message = self.create_message(
+                    outputs[output_key], prompt, parent_id=parent_id
+                )
+                await self.add_message(message)
+            self.pop_sequence()
 
     async def on_tool_start(
         self, serialized: Dict[str, Any], input_str: str, **kwargs: Any
