@@ -14,7 +14,7 @@ model User {
   createdAt     DateTime        @default(now())
   email         String?         @unique
   name          String?
-  roles          String[]
+  roles         String[]
   conversations Conversation[]
 
   @@index([openId, createdAt(sort: Desc)])
@@ -75,5 +75,30 @@ model Example {
   name           String
   prompt         String
   status         String
-  tags            String[]
+  tags           String[]
+}
+
+model Plugin {
+  id                                Int          @id @default(autoincrement())
+  openId                            String       @unique
+  createdAt                         DateTime     @default(now())
+  updatedAt                         DateTime     @default(now())
+  name_for_human                    String
+  description_for_human             String
+  name_for_model                    String
+  description_for_model             String
+  thumbnail                         String
+  categroy                          String
+  avgServiceLevelFromRapid          Float
+  avgLatencyFromRapid               Float
+  popularityScore                   Float
+  openApiDoc                        String
+  tags                              String[]
+  promptExamples                    String[]
+  billingPlanFromRapid              Json?
+  successfulSubscribe               Boolean?     @default(false)
+  ts_vector                         Unsupported("tsvector")?
+
+  @@index([successfulSubscribe, categroy, tags])
+  @@index([successfulSubscribe, avgServiceLevelFromRapid(sort: Desc), popularityScore(sort: Desc), avgLatencyFromRapid(sort: Asc)])
 }

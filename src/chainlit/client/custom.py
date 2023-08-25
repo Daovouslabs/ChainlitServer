@@ -8,7 +8,6 @@ from python_graphql_client import GraphqlClient
 from chainlit.client.base import MessageDict, UserDict
 from starlette.datastructures import Headers
 from chainlit.client.base import BaseDBClient, BaseAuthClient, PaginatedResponse, PageInfo
-
 from chainlit.logger import logger
 from chainlit.config import config
 from chainlit.s3_utils import S3Client
@@ -570,4 +569,99 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 endCursor=page_info["endCursor"],
             ),
             data=examples,
+        )
+
+    async def get_plugins(self, pagination, filter):
+        variables = {
+                "first": pagination.first,
+                "after": pagination.cursor,
+        }
+        if filter.search:
+            query_name = "search_plugins_connection"
+            query_prefix_search_cate_tag = """
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]) {
+                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                    """
+            query_prefix_search_cate = """
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]) {
+                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                    """
+            query_prefix_search_tag = """
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]) {
+                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                    """
+            query_prefix_search = """
+            query MyQuery($first: Int! = 20, $after: String, $search: String!) {
+                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                    """
+            variables['search'] = filter.search
+        else:
+            query_name = "Plugin_connection"
+            query_prefix_search_cate_tag = """
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]) {
+                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                    """
+            query_prefix_search_cate = """
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!]) {
+                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                    """
+            query_prefix_search_tag = """
+            query MyQuery($first: Int! = 20, $after: String, $tags: [String!]) {
+                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                    """
+            query_prefix_search = """
+            query MyQuery($first: Int! = 20, $after: String) {
+                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                    """
+
+        query_suffix = """
+                pageInfo {
+                    endCursor
+                    hasNextPage
+                    }
+                    edges {
+                    node {
+                        id
+                        description_for_human
+                        name_for_human
+                        popularityScore
+                        thumbnail
+                        avgServiceLevelFromRapid
+                        avgLatencyFromRapid
+                    }
+                }
+            }
+        }"""
+
+        if filter.categories and filter.tags:
+            query = query_prefix_search_cate_tag + query_suffix
+            variables['categories'] = filter.categories
+            variables['tags'] = filter.tags
+        elif filter.categories:
+            query = query_prefix_search_cate + query_suffix
+            variables['categories'] = filter.categories
+        elif filter.tags:
+            query = query_prefix_search_tag + query_suffix
+            variables['tags'] = filter.tags
+        else:
+            query = query_prefix_search + query_suffix
+
+        res = await self.query(query, variables)
+        self.check_for_errors(res, raise_error=True)
+
+        plugins = []
+
+        for edge in res["data"][query_name]["edges"]:
+            node = edge["node"]
+            node["id"] = base64_id_to_int(node['id'])
+            plugins.append(node)
+
+        page_info = res["data"][query_name]["pageInfo"]
+        
+        return PaginatedResponse(
+            pageInfo=PageInfo(
+                hasNextPage=page_info["hasNextPage"],
+                endCursor=page_info["endCursor"],
+            ),
+            data=plugins,
         )

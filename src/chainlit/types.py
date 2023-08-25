@@ -92,3 +92,12 @@ class ConversationFilter(BaseModel):
 class GetConversationsRequest(BaseModel):
     pagination: Pagination
     filter: ConversationFilter
+
+class PluginFilter(BaseModel):
+    search: Optional[str]
+    categories: Optional[List[str]]
+    tags: Optional[List[str]]
+
+class GetPluginsRequest(BaseModel):
+    pagination: Pagination
+    filter: PluginFilter

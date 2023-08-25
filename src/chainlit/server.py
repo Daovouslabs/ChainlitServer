@@ -35,7 +35,8 @@ from chainlit.types import (
     DeleteConversationRequest,
     GetConversationsRequest,
     UpdateFeedbackRequest,
-    Pagination
+    Pagination,
+    GetPluginsRequest
 )
 
 
@@ -328,7 +329,6 @@ async def serve_file(filename: str):
     else:
         raise HTTPException(status_code=404, detail="File not found")
 
-
 @app.get("/favicon.svg")
 async def get_favicon():
     favicon_path = os.path.join(build_dir, "favicon.svg")
@@ -351,5 +351,12 @@ def register_wildcard_route_handler():
 
     #     return response
 
+@app.post("/project/plugins")
+async def get_project_plugins(request: Request, payload: GetPluginsRequest):
+    """Get the plugins page by page."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_plugins(payload.pagination, payload.filter)
+    return JSONResponse(content=res.to_dict())
 
 import chainlit.socket  # noqa
