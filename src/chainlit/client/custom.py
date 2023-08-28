@@ -144,13 +144,12 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         user_infos: Optional[UserDict] = None
     ):
         self.lock = asyncio.Lock()
-        # 解码access_token 获取用户openid
-        # if access_token:
-        #     token_parsed = parse_access_token(access_token)
-        #     self.author_id = token_parsed.get('sub')
-        # super().__init__(access_token)
-        print(user_infos)
-        self.user_infos = user_infos if user_infos else {}
+
+        self.user_infos = user_infos
+        if not user_infos:
+            auth_client = CustomAuthClient(handshake_headers, request_headers)
+            self.user_infos = auth_client.get_user_infos()
+
         super().__init__()
 
     async def create_user(self, variables: UserDict) -> bool:
@@ -167,6 +166,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         if self.check_for_errors(res):
             logger.warning("Could not create user.")
             return False
+        self.user_infos['id'] = res.get('data', {}).get('insert_User_one', {}).get('id')
         return True
 
     async def get_project_members(self):
@@ -580,38 +580,38 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             query_name = "search_plugins_connection"
             query_prefix_search_cate_tag = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]) {
-                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_cate = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]) {
-                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_tag = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]) {
-                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!) {
-                search_plugins_connection(first: $first, where: {successfulSubscribe: {_eq: true}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             variables['search'] = filter.search
         else:
             query_name = "Plugin_connection"
             query_prefix_search_cate_tag = """
             query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]) {
-                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_cate = """
             query MyQuery($first: Int! = 20, $after: String, $categories: [String!]) {
-                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, categroy: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_tag = """
             query MyQuery($first: Int! = 20, $after: String, $tags: [String!]) {
-                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search = """
             query MyQuery($first: Int! = 20, $after: String) {
-                Plugin_connection(first: $first, where: {successfulSubscribe: {_eq: true}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
 
         query_suffix = """
@@ -665,3 +665,61 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             ),
             data=plugins,
         )
+    
+    async def get_plugin_categories(self):
+        query = """
+            query MyQuery {
+                Plugin_connection(distinct_on: category) {
+                    edges {
+                        node {
+                            category
+                        }
+                    }
+                }
+            }
+        """
+
+        res = await self.query(query)
+        return [t.get('node', {}).get('category') for t in res.get('data', {}).get('Plugin_connection', {}).get('edges', [])]
+
+    async def subscribe(self, pluginId: int):
+        mutation = """
+            mutation MyMutation($userId: Int!, $pluginId: Int!) {
+                insert_Subscription_one(object: {pluginId: $pluginId, userId: $userId}, on_conflict: {constraint: Subscription_userId_pluginId_key, update_columns: [status]}) {
+                    id
+                }
+            }
+        """
+        vars = {
+            "userId": self.user_infos.get('id'),
+            "pluginId": pluginId
+        }
+
+        res = self.mutation(mutation, vars)
+        if self.check_for_errors(res):
+            logger.warning(f"Could not subscribe plugin {pluginId}.")
+            return False
+        
+        return True
+
+    async def unsubscribe(self, pluginId: int):
+        mutation = """
+        mutation MyMutation($userId: Int!, $pluginId: Int!) {
+            update_Subscription(where: {pluginId: {_eq: $pluginId}, userId: {_eq: $userId}}, _set: {status: false}) {
+                returning {
+                    status
+                }
+            }
+        }
+        """
+        vars = {
+            "userId": self.user_infos.get('id'),
+            "pluginId": pluginId
+        }
+
+        res = self.mutation(mutation, vars)
+        if self.check_for_errors(res):
+            logger.warning(f"Could not subscribe plugin {pluginId}.")
+            return False
+        
+        return True

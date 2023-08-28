@@ -1,10 +1,10 @@
 import os
 
-from chainlit.config import PACKAGE_ROOT, config
+from chainlit.config import PACKAGE_ROOT, config, APP_ROOT
 from chainlit.logger import logger
 
 SCHEMA_PATH = os.path.join(PACKAGE_ROOT, "db/prisma/schema.prisma")
-CUSTOM_SCHEMA_PATH = os.path.join(PACKAGE_ROOT, "db/prisma/schema_postgre.prisma")
+CUSTOM_SCHEMA_PATH = os.path.join(APP_ROOT, "configs/schemas/schema.prisma")
 
 def db_push():
     from importlib import reload
