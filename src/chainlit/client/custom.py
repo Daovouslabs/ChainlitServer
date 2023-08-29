@@ -145,6 +145,10 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
     ):
         self.lock = asyncio.Lock()
 
+        self.plugin_status_map = {
+            0: "Offline", 1: "Coming soon", 2: "Suspended", 3: "Online"
+        }
+
         self.user_infos = user_infos
         if not user_infos:
             auth_client = CustomAuthClient(handshake_headers, request_headers)
@@ -668,6 +672,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             node["id"] = base64_id_to_int(node['id'])
             node["is_subscribed"] = len(node.get('Subscriptions', [])) > 0
             del node['Subscriptions']
+            node['status'] = self.plugin_status_map.get(node.get('status'), 1)
             plugins.append(node)
 
         page_info = res["data"][query_name]["pageInfo"]
