@@ -273,7 +273,6 @@ async def get_member_role(request: Request):
 @app.post("/project/conversations")
 async def get_project_conversations(request: Request, payload: GetConversationsRequest):
     """Get the conversations page by page."""
-
     db_client = await get_db_client_from_request(request)
     res = await db_client.get_conversations(payload.pagination, payload.filter)
     return JSONResponse(content=res.to_dict())
@@ -351,12 +350,36 @@ def register_wildcard_route_handler():
 
     #     return response
 
-@app.post("/project/plugins")
+@app.post("/plugins")
 async def get_project_plugins(request: Request, payload: GetPluginsRequest):
     """Get the plugins page by page."""
 
     db_client = await get_db_client_from_request(request)
     res = await db_client.get_plugins(payload.pagination, payload.filter)
+    return JSONResponse(content=res.to_dict())
+
+@app.get("/plugin_categories")
+async def get_plugin_categories(request: Request):
+    """Get the plugins categories."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.get_plugin_categories()
+    return JSONResponse(content=res.to_dict())
+
+@app.post("/subscribe")
+async def get_plugin_subscribe(request: Request, plugin_id: int):
+    """subscribe plugin."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.subscribe(plugin_id)
+    return JSONResponse(content=res.to_dict())
+
+@app.post("/unsubscribe")
+async def get_plugin_unsubscribe(request: Request, plugin_id: int):
+    """unsubscribe plugin."""
+
+    db_client = await get_db_client_from_request(request)
+    res = await db_client.unsubscribe(plugin_id)
     return JSONResponse(content=res.to_dict())
 
 import chainlit.socket  # noqa

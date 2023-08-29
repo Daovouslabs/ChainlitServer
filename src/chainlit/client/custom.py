@@ -579,47 +579,47 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         if filter.search:
             query_name = "search_plugins_connection"
             query_prefix_search_cate_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
                 search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_cate = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]{user_id_placeholder}) {
                 search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]{user_id_placeholder}) {
                 search_plugins_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!{user_id_placeholder}) {
                 search_plugins_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             variables['search'] = filter.search
         else:
             query_name = "Plugin_connection"
             query_prefix_search_cate_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
                 Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_cate = """
-            query MyQuery($first: Int! = 20, $after: String, $categories: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!]{user_id_placeholder}) {
                 Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $tags: [String!]) {
+            query MyQuery($first: Int! = 20, $after: String, $tags: [String!]{user_id_placeholder}) {
                 Plugin_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search = """
-            query MyQuery($first: Int! = 20, $after: String) {
+            query MyQuery($first: Int! = 20, $after: String{user_id_placeholder}) {
                 Plugin_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
 
         query_suffix = """
                 pageInfo {
-                    endCursor
-                    hasNextPage
-                    }
-                    edges {
+                        endCursor
+                        hasNextPage
+                }
+                edges {
                     node {
                         id
                         description_for_human
@@ -628,6 +628,9 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                         thumbnail
                         avgServiceLevelFromRapid
                         avgLatencyFromRapid
+                        promptExamples
+                        status
+                        {subscription_placeholder}
                     }
                 }
             }
@@ -646,6 +649,15 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         else:
             query = query_prefix_search + query_suffix
 
+        # 存在用户id 时，判断用户是否订阅了该插件
+        if self.user_infos.get('id'):
+            query = query.replace('{user_id_placeholder}', f", $userId: Int!").replace('{subscription_placeholder}', """Subscriptions(where: {userId: {_eq: $userId}, status: {_eq: true}}) {
+                            userId
+                            status
+                        }""")
+        else:
+            query = query.replace('{user_id_placeholder}', "").replace('{subscription_placeholder}', "")
+
         res = await self.query(query, variables)
         self.check_for_errors(res, raise_error=True)
 
@@ -654,6 +666,8 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         for edge in res["data"][query_name]["edges"]:
             node = edge["node"]
             node["id"] = base64_id_to_int(node['id'])
+            node["is_subscribed"] = len(node.get('Subscriptions', [])) > 0
+            del node['Subscriptions']
             plugins.append(node)
 
         page_info = res["data"][query_name]["pageInfo"]
