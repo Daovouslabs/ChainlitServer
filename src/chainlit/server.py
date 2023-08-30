@@ -39,7 +39,6 @@ from chainlit.types import (
     GetPluginsRequest
 )
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     host = config.run.host
@@ -191,6 +190,11 @@ async def completion(completion: CompletionRequest):
 
     import openai
 
+    openai.api_type = "azure"
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    openai.api_base = os.getenv('OPENAI_API_BASE')
+    openai.api_version = os.getenv('OPENAI_API_VERSION')
+
     trace_event("completion")
 
     api_key = completion.userEnv.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY"))
@@ -203,6 +207,7 @@ async def completion(completion: CompletionRequest):
 
     if model_name in ["gpt-3.5-turbo", "gpt-4"]:
         response = await openai.ChatCompletion.acreate(
+            deployment_id=os.environ.get("DEPLOYMENT_NAME"),
             api_key=api_key,
             model=model_name,
             messages=[{"role": "user", "content": completion.prompt}],
@@ -212,6 +217,7 @@ async def completion(completion: CompletionRequest):
         return PlainTextResponse(content=response["choices"][0]["message"]["content"])
     else:
         response = await openai.Completion.acreate(
+            deployment_id=os.environ.get("DEPLOYMENT_NAME"),
             api_key=api_key,
             model=model_name,
             prompt=completion.prompt,
