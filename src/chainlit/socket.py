@@ -138,11 +138,11 @@ async def connection_successful(sid):
         "local",
         "custom",
     ]:
-        await session.db_client.create_user(session.auth_client.user_infos)
+        flag, user_info = await session.db_client.create_user(session.auth_client.user_infos)
 
     if config.code.on_chat_start:
         """Call the on_chat_start function provided by the developer."""
-        await config.code.on_chat_start()
+        await config.code.on_chat_start(user_info)
 
 
 @socket.on("clear_session")

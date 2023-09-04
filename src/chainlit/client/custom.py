@@ -156,22 +156,27 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 
         super().__init__()
 
-    async def create_user(self, variables: UserDict) -> bool:
+    async def create_user(self, variables: UserDict) -> (bool, list):
         if not variables:
-            return False
+            return False, self.user_infos
         mutation = """
             mutation ($openId: String!, $name: String!, $email: String!, $roles: [String!]!) {
                 insert_User_one(object: {openId: $openId, name: $name, email: $email, roles: $roles}, on_conflict: {constraint: User_openId_key, update_columns: [roles, name, email]}) {
                     id
+                    Agents(where: {is_default: {_eq: true}}) {
+                        name
+                    }
                 }
             }
             """
         res = await self.mutation(mutation, variables)
         if self.check_for_errors(res):
             logger.warning("Could not create user.")
-            return False
+            return False, self.user_infos
         self.user_infos['id'] = res.get('data', {}).get('insert_User_one', {}).get('id')
-        return True
+        agents = res.get('data', {}).get('insert_User_one', {}).get('Agents', [])
+        self.user_infos['agent_name'] = agents[0].get('name') if agents else None
+        return True, self.user_infos
 
     async def get_project_members(self):
         return []
