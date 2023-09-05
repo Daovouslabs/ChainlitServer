@@ -130,6 +130,8 @@ class CustomAuthClient(BaseAuthClient, GraphQLClient):
 
 
 def base64_id_to_int(id_b64encode: str) -> int:
+    if isinstance(id_b64encode, int):
+        return id_b64encode
     return eval(base64.b64decode(id_b64encode).decode('utf-8'))[-1]
 
 class CustomDBClient(BaseDBClient, GraphQLClient):
@@ -207,7 +209,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
     async def get_conversation_id(self):
         self.conversation_id = await self.create_conversation()
 
-        return self.conversation_id
+        return base64_id_to_int(self.conversation_id)
 
     async def delete_conversation(self, conversation_id: int):
         mutation = """mutation ($id: Int!) {
@@ -523,6 +525,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         }
         """
         variables["conversationId"] = c_id
+        variables['id'] = base64_id_to_int(variables['id'])
         res = await self.mutation(mutation, variables)
 
         if self.check_for_errors(res):

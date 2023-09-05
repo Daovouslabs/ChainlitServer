@@ -84,13 +84,14 @@ class Element:
                 mime_types[self.type]
                 if self.type in mime_types
                 else filetype.guess_mime(self.content)
-            )
+            )            
             ext = (
                 "txt"
-                if self.type == "text"
+                if self.type in ["text", 'tasklist']
                 else filetype.guess_extension(self.content)
             )
-            self.url = await client.upload_element(content=self.content, mime=mime, type=self.type, ext=ext)
+            if ext != 'txt':
+                self.url = await client.upload_element(content=self.content, mime=mime, type=self.type, ext=ext)
         if not self.persisted:
             element_dict = await client.create_element(self.to_dict())
             self.persisted = True
