@@ -1,20 +1,8 @@
-function testPlayground(index, shouldContain: string) {
-  cy.get(".playground-button").eq(index).should("exist").click();
+import { describeSyncAsync, runTestServer } from "../../support/testUtils";
 
-  cy.get("#playground")
-    .should("exist")
-    .get("[contenteditable=true]")
-    .should("exist")
-    .should("contain", shouldContain);
-
-  cy.get("#playground").get("#close-playground").should("exist").click();
-}
-
-describe("Langchain Callback", () => {
+describeSyncAsync("Langchain Callback", (mode) => {
   before(() => {
-    cy.intercept("/project/settings").as("settings");
-    cy.visit("http://127.0.0.1:8000");
-    cy.wait(["@settings"]);
+    runTestServer(mode);
   });
 
   it("should be able to send messages to the UI with prompts", () => {
@@ -30,6 +18,16 @@ describe("Langchain Callback", () => {
 
     cy.get(".message").should("have.length", 4);
 
-    testPlayground(0, "This is prompt of llm1\nThis is the response of tool1");
+    cy.get(".playground-button").eq(0).should("exist").click();
+
+    cy.get(".formatted-editor [contenteditable]")
+      .should("exist")
+      .should("contain", "This is prompt of llm1");
+
+    cy.get(".completion-editor [contenteditable]")
+      .should("exist")
+      .should("contain", "This is the response of llm1");
+
+    cy.get("#close-playground").should("exist").click();
   });
 });

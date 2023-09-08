@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Union
 
 import chainlit as cl
 from chainlit.client.base import (
