@@ -370,7 +370,7 @@ async def get_plugin_categories(request: Request):
 
     db_client = await get_db_client_from_request(request)
     res = await db_client.get_plugin_categories()
-    return JSONResponse(content=res.to_dict())
+    return JSONResponse(content={"categories": res})
 
 @app.post("/subscribe")
 async def get_plugin_subscribe(request: Request, plugin_id: int):
@@ -378,7 +378,7 @@ async def get_plugin_subscribe(request: Request, plugin_id: int):
 
     db_client = await get_db_client_from_request(request)
     res = await db_client.subscribe(plugin_id)
-    return JSONResponse(content=res.to_dict())
+    return JSONResponse(content={"success": res})
 
 @app.post("/unsubscribe")
 async def get_plugin_unsubscribe(request: Request, plugin_id: int):
@@ -386,6 +386,6 @@ async def get_plugin_unsubscribe(request: Request, plugin_id: int):
 
     db_client = await get_db_client_from_request(request)
     res = await db_client.unsubscribe(plugin_id)
-    return JSONResponse(content=res.to_dict())
+    return JSONResponse(content={"success": res})
 
 import chainlit.socket  # noqa
