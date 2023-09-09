@@ -679,7 +679,6 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             node = edge["node"]
             node["id"] = base64_id_to_int(node['id'])
             node["is_subscribed"] = len(node.get('Subscriptions', [])) > 0
-            del node['Subscriptions']
             node['status'] = self.plugin_status_map.get(node.get('status'), 1)
             plugins.append(node)
 
