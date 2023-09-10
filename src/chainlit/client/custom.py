@@ -699,6 +699,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                             userId
                             status
                         }""")
+            variables['userId'] = self.user_infos.get('id')
         else:
             query = query.replace('{user_id_placeholder}', "").replace('{subscription_placeholder}', "")
 
