@@ -160,23 +160,27 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 
     async def get_user_info_by_openId(self, openId):
         query = """query MyQuery($openId: String!) {
-            User(where: {openId: {_eq: $openId}}) {
+        User_connection(where: {openId: {_eq: $openId}}) {
+            edges {
+            node {
                 id
                 Agents(where: {is_default: {_eq: true}}) {
-                    name
+                name
                 }
             }
+            }
+        }
         }"""
         vars = {
             "openId": openId
         }
         res = await self.query(query, vars)
-        if self.check_for_errors(res) or len(res.get('data', {}).get('User', [])) == 0:
+        if self.check_for_errors(res) or len(res.get('data', {}).get('User_connection', {}).get('edges', [])) == 0:
             return {}
         
-        agents = res.get('data', {}).get('User', [])[0].get('Agents', [])
+        agents = res.get('data', {}).get('User_connection', {}).get('edges', [])[0].get('node', {}).get('Agents', [])
         user_info = {
-            "id": res.get('data', {}).get('User', [])[0].get('id'),
+            "id": base64_id_to_int(res.get('data', {}).get('User_connection', {}).get('edges', [])[0].get('node', {}).get('id')),
             "agent_name": agents[0].get('name') if agents else None
         }
         return user_info
