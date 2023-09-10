@@ -158,6 +158,30 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 
         super().__init__()
 
+    async def get_user_info_by_openId(self, openId):
+        query = """query MyQuery($openId: String!) {
+            User(where: {openId: {_eq: $openId}}) {
+                id
+                Agents(where: {is_default: {_eq: true}}) {
+                    name
+                }
+            }
+        }"""
+        vars = {
+            "openId", openId
+        }
+        res = await self.query(query, vars)
+        if self.check_for_errors(res) or len(res.get('data', {}).get('User', [])) == 0:
+            return {}
+        
+        agents = res.get('data', {}).get('User', [])[0].get('Agents', [])
+        user_info = {
+            "id": res.get('data', {}).get('User', [])[0].get('id'),
+            "agent_name": agents[0].get('name') if agents else None
+        }
+        return user_info
+
+
     async def create_user(self, variables: UserDict) -> (bool, list):
         if not variables:
             return False, self.user_infos
@@ -661,6 +685,10 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         else:
             query = query_prefix_search + query_suffix
 
+        if not self.user_infos.get('id'):
+            _user_info = await self.get_user_info_by_openId(self.user_infos.get('openId'))
+            self.user_infos = {**self.user_infos, **_user_info}
+
         # 存在用户id 时，判断用户是否订阅了该插件
         if self.user_infos.get('id'):
             query = query.replace('{user_id_placeholder}', f", $userId: Int!").replace('{subscription_placeholder}', """Subscriptions(where: {userId: {_eq: $userId}, status: {_eq: true}}) {
@@ -716,6 +744,13 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 }
             }
         """
+        if not self.user_infos.get('id'):
+            _user_info = await self.get_user_info_by_openId(self.user_infos.get('openId'))
+            self.user_infos = {**self.user_infos, **_user_info}
+        
+        if not self.user_infos.get('id'):
+            logger.warning(f"do not have user id for openid {self.user_infos.get('openId')}")
+            return False
         vars = {
             "userId": self.user_infos.get('id'),
             "pluginId": pluginId
@@ -738,6 +773,13 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             }
         }
         """
+        if not self.user_infos.get('id'):
+            _user_info = await self.get_user_info_by_openId(self.user_infos.get('openId'))
+            self.user_infos = {**self.user_infos, **_user_info}
+
+        if not self.user_infos.get('id'):
+            logger.warning(f"do not have user id for openid {self.user_infos.get('openId')}")
+            return False
         vars = {
             "userId": self.user_infos.get('id'),
             "pluginId": pluginId
