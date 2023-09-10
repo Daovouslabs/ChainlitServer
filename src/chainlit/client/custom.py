@@ -168,7 +168,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             }
         }"""
         vars = {
-            "openId", openId
+            "openId": openId
         }
         res = await self.query(query, vars)
         if self.check_for_errors(res) or len(res.get('data', {}).get('User', [])) == 0:
