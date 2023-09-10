@@ -721,7 +721,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             "pluginId": pluginId
         }
 
-        res = self.mutation(mutation, vars)
+        res = await self.mutation(mutation, vars)
         if self.check_for_errors(res):
             logger.warning(f"Could not subscribe plugin {pluginId}.")
             return False
@@ -743,7 +743,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             "pluginId": pluginId
         }
 
-        res = self.mutation(mutation, vars)
+        res = await self.mutation(mutation, vars)
         if self.check_for_errors(res):
             logger.warning(f"Could not subscribe plugin {pluginId}.")
             return False
