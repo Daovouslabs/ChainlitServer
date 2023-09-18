@@ -41,8 +41,15 @@ def get_access_token():
 class GraphQLClient:
     def __init__(self):
         graphql_endpoint = config.graphql_url
+        hasura_secret = config.hasura_secret
+
+        headers = {
+            "content-type": "application/json",
+            "x-hasura-admin-secret": hasura_secret
+        }
         self.graphql_client = GraphqlClient(
-            endpoint=graphql_endpoint
+            endpoint=graphql_endpoint,
+            headers=headers
         )
 
     def query(self, query: str, variables: Dict[str, Any] = {}) -> Dict[str, Any]:
@@ -92,13 +99,23 @@ class CustomAuthClient(BaseAuthClient, GraphQLClient):
         if access_token is None:
             raise ConnectionRefusedError("No access token provided")
         
-        # parse user openid
-        token_parsed = parse_access_token(access_token)
-        self.author_id = token_parsed.get('sub')
+        # 多次尝试解析token
+        try_limit, cur = 5, 0
+        while cur < try_limit:
+            try:
+                # parse user openid
+                token_parsed = parse_access_token(access_token)
+                self.author_id = token_parsed.get('sub')
 
-        # call system api
-        mgmt_api_token = get_access_token()
-        self.auth0 = Auth0(AUTH0_DOMAIN, mgmt_api_token)
+                # call system api
+                mgmt_api_token = get_access_token()
+                self.auth0 = Auth0(AUTH0_DOMAIN, mgmt_api_token)
+                break
+            except Exception as e:
+                cur += 1
+                if cur == try_limit:
+                    raise ConnectionRefusedError(str(e))
+                continue
 
         # init user_info
         self._get_user_infos()
