@@ -637,38 +637,38 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
             query_name = "search_plugins_connection"
             query_prefix_search_cate_tag = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
-                search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_cate = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]{user_id_placeholder}) {
-                search_plugins_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_tag = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]{user_id_placeholder}) {
-                search_plugins_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_eq: 3}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search = """
             query MyQuery($first: Int! = 20, $after: String, $search: String!{user_id_placeholder}) {
-                search_plugins_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
+                search_plugins_connection(first: $first, where: {status: {_eq: 3}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             variables['search'] = filter.search
         else:
             query_name = "Plugin_connection"
             query_prefix_search_cate_tag = """
             query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
-                Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_cate = """
             query MyQuery($first: Int! = 20, $after: String, $categories: [String!]{user_id_placeholder}) {
-                Plugin_connection(first: $first, where: {status: {_gt: 0}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_tag = """
             query MyQuery($first: Int! = 20, $after: String, $tags: [String!]{user_id_placeholder}) {
-                Plugin_connection(first: $first, where: {status: {_gt: 0}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_eq: 3}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search = """
             query MyQuery($first: Int! = 20, $after: String{user_id_placeholder}) {
-                Plugin_connection(first: $first, where: {status: {_gt: 0}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
+                Plugin_connection(first: $first, where: {status: {_eq: 3}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
 
         query_suffix = """
