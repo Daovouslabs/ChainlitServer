@@ -176,7 +176,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         super().__init__()
 
     async def get_user_info_by_openId(self, openId):
-        query = """query MyQuery($openId: String!) {
+        query = """query MyQuery($openId: String!) @cached {
         User_connection(where: {openId: {_eq: $openId}}) {
             edges {
             node {
@@ -269,7 +269,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         return True
 
     async def get_conversation(self, conversation_id: int):
-        query = """query ($id: Int!) {
+        query = """query ($id: Int!) @cached {
 			Conversation_connection(where: {id: {_eq: $id}}) {
 				edges {
 					node {
@@ -333,7 +333,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $withFeedback: [Int]=[-1, 0, 1]
                 $search: String
                 $authorId: String
-            ) {
+            ) @cached {
                   search_messages_connection(args: {search: $search}, after: $cursor, first: $first, where: {authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}}, order_by: {createdAt: desc}) {
                     edges {
                         cursor
@@ -366,7 +366,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
                 $cursor: String
                 $withFeedback: [Int]=[-1, 0, 1]
                 $authorId: String
-            ) {
+            ) @cached {
                 Message_connection(after: $cursor, first: $first, where: {authorIsUser: {_eq: true}, Conversation: {authorId: {_eq: $authorId}, Messages: {humanFeedback: {_in: $withFeedback}}}}, order_by: {createdAt: desc}) {
                     edges {
                         cursor
@@ -496,7 +496,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         query = """query (
 			$conversationId: Int!
 			$id: Int!
-		) {
+		) @cached {
 			  Element_connection(where: {conversationId: {_eq: $conversationId}, id: {_eq: $id}}) {
 				edges {
 					node {
@@ -588,7 +588,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
 
     async def get_examples(self, pagination):
         query = """
-            query ($first: Int, $cursor: String) {
+            query ($first: Int, $cursor: String) @cached {
                 Example_connection(order_by: {createdAt: desc}, after: $cursor, first: $first) {
                     edges {
                         node {
@@ -636,38 +636,38 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
         if filter.search:
             query_name = "search_plugins_connection"
             query_prefix_search_cate_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!], $tags: [String!]{user_id_placeholder}) @cached {
                 search_plugins_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_cate = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $categories: [String!]{user_id_placeholder}) @cached {
                 search_plugins_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!, $tags: [String!]{user_id_placeholder}) @cached {
                 search_plugins_connection(first: $first, where: {status: {_eq: 3}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             query_prefix_search = """
-            query MyQuery($first: Int! = 20, $after: String, $search: String!{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $search: String!{user_id_placeholder}) @cached {
                 search_plugins_connection(first: $first, where: {status: {_eq: 3}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, args: {search: $search}, after: $after) {
                     """
             variables['search'] = filter.search
         else:
             query_name = "Plugin_connection"
             query_prefix_search_cate_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!], $tags: [String!]{user_id_placeholder}) @cached {
                 Plugin_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_cate = """
-            query MyQuery($first: Int! = 20, $after: String, $categories: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $categories: [String!]{user_id_placeholder}) @cached {
                 Plugin_connection(first: $first, where: {status: {_eq: 3}, category: {_in: $categories}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search_tag = """
-            query MyQuery($first: Int! = 20, $after: String, $tags: [String!]{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String, $tags: [String!]{user_id_placeholder}) @cached {
                 Plugin_connection(first: $first, where: {status: {_eq: 3}, tags: {_contains: $tags}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
             query_prefix_search = """
-            query MyQuery($first: Int! = 20, $after: String{user_id_placeholder}) {
+            query MyQuery($first: Int! = 20, $after: String{user_id_placeholder}) @cached {
                 Plugin_connection(first: $first, where: {status: {_eq: 3}}, order_by: {avgServiceLevelFromRapid: desc, popularityScore: desc, avgLatencyFromRapid: asc}, after: $after) {
                     """
 
@@ -744,7 +744,7 @@ class CustomDBClient(BaseDBClient, GraphQLClient):
     
     async def get_plugin_categories(self):
         query = """
-            query MyQuery {
+            query MyQuery @cached {
                 Plugin_connection(distinct_on: category) {
                     edges {
                         node {
