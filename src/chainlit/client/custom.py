@@ -40,8 +40,8 @@ def get_access_token():
 
 class GraphQLClient:
     def __init__(self):
-        graphql_endpoint = config.graphql_url
-        hasura_secret = config.hasura_secret
+        graphql_endpoint = os.getenv('GRAPHQL_URL')
+        hasura_secret = os.getenv('X_HASURA_ADMIN_SECRET')
 
         headers = {
             "content-type": "application/json",

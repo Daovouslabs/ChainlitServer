@@ -225,8 +225,8 @@ class ChainlitConfig:
     chainlit_prod_url = chainlit_prod_url
 
     # graphql url
-    graphql_url: str
-    hasura_secret: str
+    # graphql_url: str
+    # hasura_secret: str
 
     run: RunSettings
     ui: UISettings
@@ -298,8 +298,8 @@ def load_settings():
         )
 
         # graphql url
-        graphql_url = toml_dict.get('graphql', {}).get('url')
-        hasura_secret = toml_dict.get('graphql', {}).get('hasura_secret')
+        # graphql_url = toml_dict.get('graphql', {}).get('url')
+        # hasura_secret = toml_dict.get('graphql', {}).get('hasura_secret')
 
         if not meta or meta.get("generated_by") <= "0.3.0":
             raise ValueError(
@@ -332,8 +332,8 @@ def load_settings():
             "code": CodeSettings(action_callbacks={}),
             "examples": examples,
             "s3": s3,
-            "graphql_url": graphql_url,
-            "hasura_secret": hasura_secret,
+            # "graphql_url": graphql_url,
+            # "hasura_secret": hasura_secret,
         }
 
 
@@ -350,8 +350,8 @@ def reload_config():
     config.project = settings["project"]
     config.examples = settings['examples']
     config.s3 = settings['s3']
-    config.graphql_url = settings['graphql_url']
-    config.hasura_secret = settings['hasura_secret']
+    # config.graphql_url = settings['graphql_url']
+    # config.hasura_secret = settings['hasura_secret']
 
 
 def load_config():
