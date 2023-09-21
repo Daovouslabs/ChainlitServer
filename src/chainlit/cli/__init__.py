@@ -52,10 +52,10 @@ def run_chainlit(target: str):
     init_markdown(config.root)
 
     # Initialize the LangChain cache if installed and enabled
-    init_lc_cache()
+    # init_lc_cache()
 
     # Initialize the local database if configured to use it
-    init_local_db()
+    # init_local_db()
 
     log_level = "debug" if config.run.debug else "error"
 
